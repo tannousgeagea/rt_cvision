@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package impurity;
+
+service ComputingUnit {
+    rpc ProcessData (ProcessDataRequest) returns (ProcessDataResponse) {}
+}
+
+message ProcessDataRequest {
+  string data = 1;
+}
+
+message ProcessDataResponse {
+    string result = 1;
+}

@@ -107,14 +107,16 @@ RUN addgroup --gid $groupid $group && \
 
 # # # Create initial workspace 
 RUN mkdir -p /home/$user/src
-RUN mkdir -p /home/$user/data
+RUN mkdir -p /media/$user
 
 RUN /bin/bash -c ". /opt/ros/noetic/setup.bash; catkin_init_workspace /home/$user/src"  
 RUN /bin/bash -c ". /opt/ros/noetic/setup.bash; cd /home/$user; catkin_make"
 
 RUN /bin/bash -c "echo source /opt/ros/noetic/setup.bash >> /home/$user/.bashrc"
 RUN /bin/bash -c "echo source /home/$user/devel/setup.bash >> /home/$user/.bashrc"
+
 RUN /bin/bash -c "chown -R $user:$user /home/$user/"
+RUN /bin/bash -c "chown -R $user:$user /media/$user/"
 
 # setup entrypoint
 ENV ROS_DISTRO=noetic

@@ -5,7 +5,7 @@ services:
   roscore:
     image: ros:noetic-ros-core
     env_file: .env
-    container_name: cvision-dl-ops-dev-roscore
+    container_name: rt-cvision-roscore
     network_mode: host
     command: roscore
     restart: always
@@ -15,7 +15,7 @@ services:
   # redis
   redis:
     image: "redis:alpine"
-    container_name: cvision-dl-ops-dev-redis
+    container_name: rt-cvision-redis
     restart: "always"
     ports:
       - "6379:6379"
@@ -28,7 +28,7 @@ services:
   # zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
-    container_name: cvision-dl-ops-dev-zookeeper
+    container_name: rt-cvision-zookeeper
     restart: always
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -37,7 +37,7 @@ services:
   # kafka
   kafka:
     image: confluentinc/cp-kafka:latest
-    container_name: cvision-dl-ops-dev-kafka
+    container_name: rt-cvision-kafka
     restart: always
     depends_on:
       - zookeeper
@@ -53,9 +53,9 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
 
   # computing unit
-  cvision-dl-ops:
+  rt-cvision:
     image: wasteant/wasteant:cvision-dl-ops-ubuntu.20.04-cuda.11.5.2
-    container_name: cvision-dl-ops-dev-core
+    container_name: rt-cvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
     build:
@@ -73,9 +73,8 @@ services:
       - kafka
       - roscore
     volumes:
-      - ./src:/home/$user/src
-      - ./data:/home/$user/data
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - .:/home/$user/src
+      - /media/$user/rt_cvision:/media/$user/rt_cvision
     user: ${user}
     deploy:
       resources:
@@ -84,9 +83,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-
-
-
 
 volumes:
   cache:
