@@ -42,9 +42,9 @@ router = APIRouter(
 )
 
 @router.api_route(
-    "/services/metadata", methods=["GET"], tags=["Service"]
+    "/service", methods=["GET"], tags=["Service"]
 )
-def get_delivery_metadata(response: Response):
+def get_service_metadata(response: Response):
     results = {}
     try:
         row = []
@@ -96,38 +96,135 @@ def get_delivery_metadata(response: Response):
 
 
 @router.api_route(
-    "/services/", methods=["GET"], tags=["Service"]
+    "/service/{service_name}", methods=["GET"], tags=["Service"]
 )
-def get_delivery_metadata(response: Response):
+def get_service_data_by_service_name(response: Response, service_name:str):
     results = {}
     try:
-        row = []
-        services = Service.objects.all()
-        for service in services:
-            data = []
-            params = ServiceParams.objects.filter(service=service)
-            for param in params:
-                data.append(
-                    {
-                        "name": param.name,
-                        "value": param.value,
-                        "input_type": param.input_type,
-                        "description": param.description,
-                        "meta_info": param.meta_info,
-                    }
-                )
-            row.append(
+        data = []
+
+        if not Service.objects.filter(service_name=service_name).exists():
+            results['error'] = {
+                "status_code": "not found",
+                "status_description": f"query service_name {service_name} not found",
+                "detail": f"query service_name {service_name} not found; Possible options: {[s.service_name for s in Service.objects.all()]}",
+            }
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            
+            return results
+            
+        service = Service.objects.get(service_name=service_name)
+        params = ServiceParams.objects.filter(service=service)
+        for param in params:
+            data.append(
                 {
-                    'service_name': service.service_name,
-                    'service_id': service.service_id,
-                    'params': data,   
+                    "name": param.name,
+                    "value": param.value,
+                    "input_type": param.input_type,
+                    "description": param.description,
+                    "meta_info": param.meta_info,
                 }
             )
         
         results = {
-            'data': row
+            'data': {
+                'service_name': service_name,
+                'service_id': service.service_id,
+                'params': data,
+            }
         }
             
+    except HTTPException as e:
+        results['error'] = {
+            "status_code": "not found",
+            "status_description": "Request not Found",
+            "detail": f"{e}",
+        }
+        
+        response.status_code = status.HTTP_404_NOT_FOUND
+    
+    except Exception as e:
+        results['error'] = {
+            'status_code': 'server-error',
+            "status_description": "Internal Server Error",
+            "detail": str(e),
+        }
+        
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    
+    return results
+
+
+@router.api_route(
+    "/service/params/{service_name}", methods=["PUT"], tags=["Service"]
+)
+def update_service_params(response: Response, service_name:str, params:dict):
+    results = {
+        'status_code': 'ok',
+        'status_description': '',
+        'details': []
+    }
+    try:
+
+        if not Service.objects.filter(service_name=service_name).exists():
+            results['error'] = {
+                "status_code": "not found",
+                "status_description": f"query service_name {service_name} not found",
+                "detail": f"query service_name {service_name} not found; Possible options: {[s.service_name for s in Service.objects.all()]}",
+            }
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            
+            return results
+        
+        failed_update = []
+        successful_update = []
+        
+        service = Service.objects.get(service_name=service_name)
+        old_params = ServiceParams.objects.filter(service=service)
+        for name, value in params.items():
+            if not ServiceParams.objects.filter(service=service, name=name).exists():
+                failed_update.append(
+                    {
+                        'name': name,
+                        'value': value,
+                        'status': 'failed',
+                        'reason': f"param name {name} not found. Possible options: {[p.name for p in old_params]}", 
+                    }
+                )    
+                continue
+            
+            try:
+                old_param = ServiceParams.objects.get(service=service, name=name)
+                old_param.value = value
+                old_param.save()
+            except Exception as err:
+                failed_update.append(
+                    {
+                        'name': name,
+                        'value': value,
+                        'status': 'failed',
+                        'reason': f"{err}", 
+                    }
+                )
+                continue
+            
+            successful_update.append(
+                {
+                    'name': name,
+                    'value': value,
+                    'status': 'success',
+                }
+            )
+            
+            results['details'].append(successful_update)
+            
+        if failed_update:
+            results['status_code'] = 'partial-success'
+            results['status_description'] = f'{len(successful_update)} parameters updated successfully, {len(failed_update)} parameters failed'
+            results['details'].extend(failed_update)
+        else:
+            results['status_description'] = f'{len(successful_update)} parameters updated successfully'
+
     except HTTPException as e:
         results['error'] = {
             "status_code": "not found",

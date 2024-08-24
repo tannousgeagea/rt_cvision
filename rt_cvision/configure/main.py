@@ -16,15 +16,15 @@ from configure.routers import endpoints
 def create_app() -> FastAPI:
     tags_meta = [
         {
-            "name": "Waste Classification DATA API",
-            "description": "waste classification data API"
+            "name": "rt-CVision DATA API",
+            "description": "Real Time Computer Vision data API"
         }
     ]
 
     app = FastAPI(
         openapi_tags = tags_meta,
         debug=True,
-        title="Waste Classification entrypoint API",
+        title="rt-CVision entrypoint API",
         summary="",
         version="0.0.1",
         contact={
