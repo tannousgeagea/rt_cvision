@@ -11,7 +11,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exception_handlers import http_exception_handler
 from asgi_correlation_id import correlation_id
 
-from configure.routers import endpoints
+from configure.routers.params import endpoints
+from configure.routers.processor import get_processor
 
 def create_app() -> FastAPI:
     tags_meta = [
@@ -35,7 +36,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json"
     )
 
-    origins = ["http//localhost:8000"]
+    origins = ["http//10.7.0.6:23085", "http://localhost:3001"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(endpoints.router)
+    app.include_router(get_processor.router)
     
     return app
 
@@ -74,4 +76,4 @@ async def internal_server_error_handler(request: Request, exc: Exception):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=18001, log_level="debug", reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=23085, log_level="debug", reload=True)

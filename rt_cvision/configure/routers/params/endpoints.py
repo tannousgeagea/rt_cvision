@@ -36,13 +36,13 @@ class TimedRoute(APIRoute):
 
 router = APIRouter(
     prefix="/api/v1",
-    tags=["Service"],
+    tags=["ServiceParams"],
     route_class=TimedRoute,
     responses={404: {"description": "Not found"}},
 )
 
 @router.api_route(
-    "/service", methods=["GET"], tags=["Service"]
+    "/params", methods=["GET"], tags=["ServiceParams"]
 )
 def get_service_metadata(response: Response):
     results = {}
@@ -96,7 +96,7 @@ def get_service_metadata(response: Response):
 
 
 @router.api_route(
-    "/service/{service_name}", methods=["GET"], tags=["Service"]
+    "/params/{service_name}", methods=["GET"], tags=["ServiceParams"]
 )
 def get_service_data_by_service_name(response: Response, service_name:str):
     results = {}
@@ -156,7 +156,7 @@ def get_service_data_by_service_name(response: Response, service_name:str):
 
 
 @router.api_route(
-    "/service/params/{service_name}", methods=["PUT"], tags=["Service"]
+    "/params/{service_name}", methods=["PUT"], tags=["ServiceParams"]
 )
 def update_service_params(response: Response, service_name:str, params:dict):
     results = {
