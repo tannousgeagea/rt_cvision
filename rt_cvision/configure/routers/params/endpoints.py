@@ -15,6 +15,8 @@ from datetime import date, timezone
 from fastapi.routing import APIRoute
 from datetime import datetime, timedelta
 from fastapi.responses import JSONResponse
+from xmlrpc.client import ServerProxy
+server = ServerProxy('http://appuser:wasteantadmin@2024@localhost:19001/RPC2')
 
 from configure.models import Service, ServiceParams
 
@@ -225,6 +227,10 @@ def update_service_params(response: Response, service_name:str, params:dict):
             results['details'].extend(failed_update)
         else:
             results['status_description'] = f'{len(successful_update)} parameters updated successfully'
+            
+        
+        server.supervisor.stopProcessGroup(service_name)
+        server.supervisor.startProcessGroup(service_name)
 
     except HTTPException as e:
         results['error'] = {

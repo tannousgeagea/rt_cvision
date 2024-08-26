@@ -4,6 +4,8 @@ import logging
 import random
 import numpy as np
 from common_utils.services.kafka_manager import KafkaServiceManager
+from configure.client import config_manager
+parameters = config_manager.params.get('segmentation')
 
 kafka_manager = KafkaServiceManager(
     config={'bootstrap.servers': 'localhost:9092'}
@@ -13,11 +15,11 @@ kafka_manager.producer = kafka_manager.create_producer(kafka_manager.config)
 topic_config = {
     'cleanup.policy': 'delete',  # Delete messages after they are consumed
     'compression.type': 'lz4',  # Use lz4 compression
-    'delete.retention.ms': 10000,  # Retain deleted messages for 10 seconds
+    'delete.retention.ms': int(parameters.get('kafka_retention_ms')),  # Retain deleted messages for 10 seconds
     'file.delete.delay.ms': 2000,  # Delay file deletion by 2 seconds
 }
 
-topic_name = 'cvision-dl-ops-core-waste-segments'
+topic_name = parameters.get('kafka_publish_topic')
 kafka_manager.create_topic(
     topic_config=topic_config,
     topic_name=topic_name,

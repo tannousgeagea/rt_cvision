@@ -30,7 +30,7 @@ def collect_messages(msg):
     return info
     
     
-def get_data(callback=None):
+def get_data(params, callback=None):
     
     if callback is None:
         def callback(messages):
@@ -42,8 +42,11 @@ def get_data(callback=None):
     def _callback(msg):
         messages = collect_messages(msg)
         callback(messages)
-        
-    kafka_manager.consume_message(topic='cvision-dl-ops-core-data-acquisition', callback=_callback)
+    try:
+        assert "kafka_topic" in params.keys(), f"key: topic not found in params"
+        kafka_manager.consume_message(topic=params.get('kafka_topic'), callback=_callback)
+    except Exception as err:
+        logging.error(f"Error reading data from kafka in segments: {err}")
     
     
 if __name__ == "__main__":

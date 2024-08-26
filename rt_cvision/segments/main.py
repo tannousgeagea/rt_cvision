@@ -7,7 +7,9 @@ from segments.tasks.database import register
 from common_utils.detection.core import Detections
 from segments.tasks.object_size.estimate_object_size import ObjectSizeEst
 from segments.tasks.publish.core import publish_to_kafka
+from configure.client import config_manager
 
+parameters = config_manager.params.get('segmentation')
 
 tasks = {
     'publish_to_kafka': publish_to_kafka,
@@ -25,7 +27,7 @@ class Processor:
             objects = self.object_size_est.execute(
                 objects=objects, 
                 input_shape=cv_image.shape,
-                correction_factor=0.001,
+                correction_factor=parameters.get('correction_factor'),
                 )
 
             instances, all_instances = self.register_objects(objects=objects)
@@ -38,7 +40,7 @@ class Processor:
             
             params = {
                 'message': kafka_msg,
-                'db_url': 'http://localhost:16052/api/v1/event/waste_segments',
+                'db_url': parameters.get('db_url'),
                 'objects': instances,
                 'model_name': 'wasteant-segmentation',
                 'model_tag': 'v003',
@@ -48,10 +50,12 @@ class Processor:
                 }
             }
             
-            for key, func in tasks.items():
-                print(f'Executing {key} ... ', end='')
-                func(params)
-                print('Done !')
+            for key, value in parameters.get('tasks').items():
+                func = tasks.get(key)
+                if value:
+                    print(f'Executing {key} ... ', end='')
+                    func(params)
+                    print('Done !')
             
         except Exception as err:
             logging.error(f"Error while executing detections in segments: {err}")
