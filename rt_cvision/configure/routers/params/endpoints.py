@@ -167,7 +167,11 @@ def update_service_params(response: Response, service_name:str, params:dict):
         'details': []
     }
     try:
-
+        restart = False
+        if 'restart' in params:
+            restart = params.get('restart')
+            params.pop('restart')
+            
         time.sleep(1)
         if not Service.objects.filter(service_name=service_name).exists():
             results['error'] = {
@@ -228,9 +232,10 @@ def update_service_params(response: Response, service_name:str, params:dict):
         else:
             results['status_description'] = f'{len(successful_update)} parameters updated successfully'
             
-        
-        server.supervisor.stopProcessGroup(service_name)
-        server.supervisor.startProcessGroup(service_name)
+        if restart:
+            server.supervisor.stopProcessGroup(service_name)
+            server.supervisor.startProcessGroup(service_name)
+            results['status_description'].extends(f"")
 
     except HTTPException as e:
         results['error'] = {

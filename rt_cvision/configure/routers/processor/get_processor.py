@@ -133,9 +133,22 @@ def get_service_data_by_group_name(response: Response, group_name:str):
         row = []
         grouped_data = defaultdict(list)
         row = server.supervisor.getAllProcessInfo()
+        filterd_data = []
+        for item in row:
+            filterd_data.append(
+                {
+                    'name': item['name'],
+                    'group': item['group'],
+                    'start': item['start'],
+                    'stop': item['stop'],
+                    'statename': item['statename'],
+                    'description': item['description'],
+                }
+            )
+        
         
         grouped_data = [
-            item for item in row if item['group'] == group_name
+            item for item in filterd_data if item['group'] == group_name
         ]
         
         results = {
