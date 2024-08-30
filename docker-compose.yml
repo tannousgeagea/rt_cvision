@@ -3,14 +3,14 @@ version: '3.3'
 services:
   # roscore
   roscore:
-    image: ros:noetic-ros-core
-    env_file: .env
-    container_name: rt-cvision-roscore
-    network_mode: host
-    command: roscore
-    restart: always
-    ports:
-      - "11312:11312"
+    # image: ros:noetic-ros-core
+    # env_file: .env
+    # container_name: rt-cvision-roscore
+    # network_mode: host
+    # command: roscore
+    # restart: always
+    # ports:
+    #   - "11312:11312"
       
   # redis
   redis:
@@ -60,6 +60,7 @@ services:
     tty: true        # docker run -t
     build:
       context: .
+      dockerfile: ${ROS_VERSION}.Dockerfile
       args:
         user: ${user}
         userid: ${userid}
