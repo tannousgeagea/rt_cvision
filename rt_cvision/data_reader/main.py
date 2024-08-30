@@ -1,7 +1,7 @@
 import logging
 from data_reader.interface.grpc import grpc_client
-from data_reader.endpoints.from_files import read_data_from_files
-from data_reader.endpoints.from_ros import read_data_from_ros
+from data_reader.endpoints.files import read_data_from_files
+from data_reader.endpoints.ros import read_data_from_ros
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
