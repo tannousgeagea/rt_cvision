@@ -235,7 +235,7 @@ def update_service_params(response: Response, service_name:str, params:dict):
         if restart:
             server.supervisor.stopProcessGroup(service_name)
             server.supervisor.startProcessGroup(service_name)
-            results['status_description'].extends(f"")
+            results['status_description'] += f" - {service_name} is restarted successfully"
 
     except HTTPException as e:
         results['error'] = {
