@@ -2,7 +2,7 @@ version: '3.3'
 
 services:
   # roscore
-  roscore:
+  # roscore:
     # image: ros:noetic-ros-core
     # env_file: .env
     # container_name: rt-cvision-roscore
@@ -54,36 +54,38 @@ services:
 
   # computing unit
   rt-cvision:
-    image: wasteant/wasteant:cvision-dl-ops-ubuntu.20.04-cuda.11.5.2
+    image: wasteant/wasteant:rt-cvision-${CUDA_VERSION}-${ros_version:-ros2}-${ros_distro:-humble}
     container_name: rt-cvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
+    env_file: .env
     build:
       context: .
-      dockerfile: ${ROS_VERSION}.Dockerfile
+      dockerfile: Dockerfile
       args:
+        ros_version: ${ros_version}
+        ros_distro: ${ros_distro}
         user: ${user}
         userid: ${userid}
         group: ${group}
         groupid: ${groupid}
+        CUDA_VERSION: ${CUDA_VERSION}
     network_mode: host
-    env_file: .env
     restart: unless-stopped
     depends_on:
       - redis
       - kafka
-      - roscore
     volumes:
       - .:/home/$user/src
       - /media/$user/rt_cvision:/media/$user/rt_cvision
     user: ${user}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   cache:

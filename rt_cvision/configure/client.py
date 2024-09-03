@@ -14,5 +14,3 @@ class ConfigManager:
     
 
 config_manager = ConfigManager()
-
-print(config_manager.params.get('Segments'))

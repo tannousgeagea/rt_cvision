@@ -8,7 +8,7 @@ from common_utils.services.redis_manager import RedisManager
 from common_utils.time_utils import KeepTrackOfTime
 
 DATETIME_FORMAT = "%Y-%m-%d %H-%M-%S"
-DEFAULT_ACQUISITION_RATE = 3 #fps
+DEFAULT_ACQUISITION_RATE = 1 #fps
 queue_size = 1
 keep_track_of_time = KeepTrackOfTime()
 

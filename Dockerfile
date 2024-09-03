@@ -1,23 +1,27 @@
 # This is an auto generated Dockerfile for ros:perception
 # generated from docker_images/create_ros_image.Dockerfile.em
-FROM nvidia/cuda:12.5.1-cudnn-runtime-ubuntu22.04
+ARG CUDA_VERSION=12.5.1-cudnn-runtime-ubuntu22.04
 
-# Maintainer instructions has been deprecated, instead use LABEL
+FROM nvidia/cuda:${CUDA_VERSION}
+
 LABEL maintainer="tannous.geagea@wasteant.com"
-
-# Versionining as "b-beta, a-alpha, rc - release candidate"
 LABEL com.wasteant.version="1.1b1"
 
 # Set non-interactive mode for apt-get
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROS_DISTRO=humble
 
 # [CHECK] Whether it is convenient to use the local user values or create ENV variables, or run everyhting with root
 ARG user
 ARG userid
 ARG group
 ARG groupid
+ARG ros_distro=humble
+ARG ros_version=ros2
 ARG installation_folder="./installation_files"
+
+# Set environment variables
+ENV ROS_VERSION=${ros_version}
+ENV ROS_DISTRO=${ros_distro}
 
 # Install other necessary packages and dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
@@ -45,47 +49,19 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-
     software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-RUN add-apt-repository universe
+# Copy installation scripts into the container
+COPY install_ros.sh /install_ros.sh
+COPY install_ros2.sh /install_ros2.sh
 
-# add the ROS 2 GPG key with apt
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+# Make the scripts executable
+RUN chmod +x /install_ros.sh /install_ros2.sh
+RUN echo "USER: $user | ROS_VERSION: $ros_version" && echo "ROS_DISTRO: $ros_distro"
 
-# add the repository to your sources list
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
-
-
-# Install dependencies to build your own ROS packages
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    python3 \
-    python3-pip \
-    python3-rosdep \
-	python3-wstool\
-	python3-distutils \
-	python3-psutil \
-    python3-tk \
-    git \
-	ffmpeg \
-	&& rm -rf /var/lib/apt/lists/*
-
-# Install ROS 2 packages
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
-    ros-${ROS_DISTRO}-desktop \
-    ros-${ROS_DISTRO}-ros-base \
-    ros-${ROS_DISTRO}-cv-bridge \
-    ros-${ROS_DISTRO}-rclpy \
-    ros-${ROS_DISTRO}-cv-bridge \
-    ros-${ROS_DISTRO}-sensor-msgs \
-    ros-dev-tools \    
-    && rm -rf /var/lib/apt/lists/*
-
-# Install ROS 2 build tools and dependencies
-RUN apt-get install -y \
-    python3-colcon-common-extensions \
-    python3-vcstool \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies and ROS version based on the environment variable
+RUN if [ "$ros_version" = "ros1" ]; then /install_ros.sh; \
+    elif [ "$ros_version" = "ros2" ]; then /install_ros2.sh; \
+    else echo "Invalid ROS_VERSION ${ros_version} specified, must be 'ros1' or 'ros2'"; exit 1; \
+    fi
 
 # Install libraries
 RUN pip3 install ultralytics
