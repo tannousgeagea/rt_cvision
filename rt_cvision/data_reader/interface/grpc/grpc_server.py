@@ -11,7 +11,7 @@ from data_reader.interface.grpc import service_pb2_grpc
 from common_utils.services.kafka_manager import KafkaServiceManager
 
 kafka_manager = KafkaServiceManager(
-    config={'bootstrap.servers': 'kafka:9092'}
+    config={'bootstrap.servers': f'{os.environ["KAFKA_HOST"]}:{os.environ["KAFKA_PORT"]}'}
 )
 
 kafka_manager.producer = kafka_manager.create_producer(kafka_manager.config)

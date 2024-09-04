@@ -90,6 +90,14 @@ services:
       # - .:/home/$user/src
       - /media/$user/rt_cvision:/media/$user/rt_cvision
     user: ${user}
+    environment:
+      ros_version: ros2
+      ros_distro: humble
+      user: appuser
+      userid: 1000
+      group: appuser
+      groupid: 1000
+      CUDA_VERSION: 12.5.1-cudnn-runtime-ubuntu22.04
     # deploy:
     #   resources:
     #     reservations:

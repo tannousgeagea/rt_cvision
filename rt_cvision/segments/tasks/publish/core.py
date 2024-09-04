@@ -8,7 +8,7 @@ from configure.client import config_manager
 parameters = config_manager.params.get('segmentation')
 
 kafka_manager = KafkaServiceManager(
-    config={'bootstrap.servers': 'kafka:9092'}
+    config={'bootstrap.servers': f'{os.environ["KAFKA_HOST"]}:{os.environ["KAFKA_PORT"]}'}
 )
 
 kafka_manager.producer = kafka_manager.create_producer(kafka_manager.config)
