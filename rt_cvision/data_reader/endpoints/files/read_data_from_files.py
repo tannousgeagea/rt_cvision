@@ -8,8 +8,7 @@ from data_reader.utils.file_utils import examine_src
 from common_utils.services.redis_manager import RedisManager
 
 VALID_FORMAT = ['jpeg', 'png', 'jpg', 'webp']
-src = '/home/appuser/data/images'
-DEFAULT_ACQUISITION_RATE = 3 #fps
+DEFAULT_ACQUISITION_RATE = 1 #fps
 DATETIME_FORMAT = "%Y-%m-%d %H-%M-%S"
 
 redis_manager = RedisManager(

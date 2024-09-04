@@ -2,15 +2,15 @@ version: '3.3'
 
 services:
   # roscore
-  roscore:
-    image: ros:noetic-ros-core
-    env_file: .env
-    container_name: rt-cvision-roscore
-    network_mode: host
-    command: roscore
-    restart: always
-    ports:
-      - "11312:11312"
+  # roscore:
+    # image: ros:noetic-ros-core
+    # env_file: .env
+    # container_name: rt-cvision-roscore
+    # network_mode: host
+    # command: roscore
+    # restart: always
+    # ports:
+    #   - "11312:11312"
       
   # redis
   redis:
@@ -21,9 +21,11 @@ services:
       - "6379:6379"
       - "16379:16379"
     volumes:
-    - cache:/data
-    - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - cache:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - rt-cvision-network
 
   # zookeeper
   zookeeper:
@@ -33,12 +35,16 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - rt-cvision-network
 
   # kafka
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: rt-cvision-kafka
     restart: always
+    networks: 
+      - rt-cvision-network
     depends_on:
       - zookeeper
     ports:
@@ -46,7 +52,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -54,36 +60,49 @@ services:
 
   # computing unit
   rt-cvision:
-    image: wasteant/wasteant:cvision-dl-ops-ubuntu.20.04-cuda.11.5.2
+    image: wasteant/wasteant:rt-cvision-${CUDA_VERSION}-${ros_version:-ros2}-${ros_distro:-humble}
     container_name: rt-cvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
+    env_file: .env
     build:
       context: .
+      dockerfile: Dockerfile
       args:
+        ros_version: ${ros_version}
+        ros_distro: ${ros_distro}
         user: ${user}
         userid: ${userid}
         group: ${group}
         groupid: ${groupid}
-    network_mode: host
-    env_file: .env
+        CUDA_VERSION: ${CUDA_VERSION}
+    networks: 
+      - rt-cvision-network
+    ports:
+      - ${INET_HTTP_SERVER_PORT}:${INET_HTTP_SERVER_PORT}
+      - ${DJANGO_ADMIN_PORT}:${DJANGO_ADMIN_PORT}
+      - ${CONFIGURE_API_PORT}:${CONFIGURE_API_PORT}
     restart: unless-stopped
     depends_on:
       - redis
       - kafka
-      - roscore
     volumes:
-      - .:/home/$user/src
+      # - .:/home/$user/src
       - /media/$user/rt_cvision:/media/$user/rt_cvision
     user: ${user}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   cache:
     driver: local
+
+networks:
+  rt-cvision-network:
+    driver: bridge
+    name: rt-cvision

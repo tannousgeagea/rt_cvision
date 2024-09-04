@@ -1,19 +1,27 @@
 # This is an auto generated Dockerfile for ros:perception
 # generated from docker_images/create_ros_image.Dockerfile.em
-FROM nvidia/cuda:11.5.2-cudnn8-runtime-ubuntu20.04
+ARG CUDA_VERSION=12.5.1-cudnn-runtime-ubuntu22.04
 
-# Maintainer instructions has been deprecated, instead use LABEL
+FROM nvidia/cuda:${CUDA_VERSION}
+
 LABEL maintainer="tannous.geagea@wasteant.com"
-
-# Versionining as "b-beta, a-alpha, rc - release candidate"
 LABEL com.wasteant.version="1.1b1"
 
+# Set non-interactive mode for apt-get
+ENV DEBIAN_FRONTEND=noninteractive
+
 # [CHECK] Whether it is convenient to use the local user values or create ENV variables, or run everyhting with root
-ENV ROS_DISTRO=noetic
 ARG user
 ARG userid
 ARG group
 ARG groupid
+ARG ros_distro=humble
+ARG ros_version=ros2
+ARG installation_folder="./installation_files"
+
+# Set environment variables
+ENV ROS_VERSION=${ros_version}
+ENV ROS_DISTRO=${ros_distro}
 
 # Install other necessary packages and dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
@@ -28,43 +36,38 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-
     lsb-release \
     wget \
     zip \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ROS
-RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
-    ros-noetic-desktop-full \
-    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies to build your own ROS packages
+# Install minimal packages for ros install
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    python3 \
-    python3-pip \
-	python3-rosdep \
-	python3-rosinstall \
-	python3-rosinstall-generator \
-	python3-wstool\
+    curl \
+    gnupg2 \
     build-essential \
-	python3-pip \
-	python3-distutils \
-	python3-psutil \
-    python3-tk \
-    git \
-	ffmpeg \
-	&& rm -rf /var/lib/apt/lists/*
-		
-#>>>note: rosdep update is not included because otherwise only root will have access to the database 
-RUN rm -f /etc/ros/rosdep/sources.list.d/20-default.list && rosdep init 
+    lsb-release \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installation scripts into the container
+COPY install_ros.sh /install_ros.sh
+COPY install_ros2.sh /install_ros2.sh
+
+# Make the scripts executable
+RUN chmod +x /install_ros.sh /install_ros2.sh
+RUN echo "USER: $user | ROS_VERSION: $ros_version" && echo "ROS_DISTRO: $ros_distro"
+
+# Install dependencies and ROS version based on the environment variable
+RUN if [ "$ros_version" = "ros1" ]; then /install_ros.sh; \
+    elif [ "$ros_version" = "ros2" ]; then /install_ros2.sh; \
+    else echo "Invalid ROS_VERSION ${ros_version} specified, must be 'ros1' or 'ros2'"; exit 1; \
+    fi
 
 # Install libraries
 RUN pip3 install ultralytics
 RUN pip3 install opencv-python
 RUN pip3 install albumentations
 RUN pip3 install natsort
-RUN pip3 install psycopg2
 RUN pip3 install schedule
 RUN pip3 install numpy
 RUN pip3 install pandas
@@ -88,16 +91,12 @@ RUN pip3 install requests
 RUN pip3 install python-redis-lock
 RUN pip3 install grpcio
 RUN pip3 install grpcio-tools
-RUN pip3 install confluent-kafka==2.0.2
-RUN pip3 install lapx>=0.5.2
+RUN pip3 install confluent-kafka
+RUN pip3 install scp
 
 # upgrade everything
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y \
    && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -q -y --no-install-recommends \
-	sudo \
-	&& rm -rf /var/lib/apt/lists/*
 
 # # Set up users and groups
 RUN addgroup --gid $groupid $group && \
@@ -105,26 +104,22 @@ RUN addgroup --gid $groupid $group && \
 	echo "$user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$user && \
 	chmod 0440 /etc/sudoers.d/$user
 
-# # # Create initial workspace 
 RUN mkdir -p /home/$user/src
 RUN mkdir -p /media/$user
-
-RUN /bin/bash -c ". /opt/ros/noetic/setup.bash; catkin_init_workspace /home/$user/src"  
-RUN /bin/bash -c ". /opt/ros/noetic/setup.bash; cd /home/$user; catkin_make"
-
-RUN /bin/bash -c "echo source /opt/ros/noetic/setup.bash >> /home/$user/.bashrc"
-RUN /bin/bash -c "echo source /home/$user/devel/setup.bash >> /home/$user/.bashrc"
 
 RUN /bin/bash -c "chown -R $user:$user /home/$user/"
 RUN /bin/bash -c "chown -R $user:$user /media/$user/"
 
-# setup entrypoint
-ENV ROS_DISTRO=noetic
+# Source the ROS 2 environment
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc
 
 # Create directory for Supervisor logs
 RUN mkdir -p /var/log/supervisor && \
     chmod -R 755 /var/log/supervisor
 	
+
+COPY . /home/${user}/src
+
 COPY ./supervisord.conf /etc/supervisord.conf
 COPY ./entrypoint.sh /home/.
 RUN /bin/bash -c "chown $user:$user /home/entrypoint.sh"

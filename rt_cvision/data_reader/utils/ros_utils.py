@@ -1,7 +1,10 @@
 import logging
+from datetime import datetime
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image, CompressedImage
 cv_bridge = CvBridge()
+
+DATETIME_FORMAT = "%Y-%m-%d %H-%M-%S"
 
 def message_mapping(msg):
     """
@@ -108,7 +111,7 @@ def extract_data_from_topic(msg, messages:dict={}):
     try:
     
       if not "header" in messages.keys():
-          messages["timestamp"] = str(msg.header.stamp)
+          messages["timestamp"] = str(msg.header.stamp.sec + msg.header.stamp.nanosec * 10e-9)
           
       k, v = message_mapping(msg)
     

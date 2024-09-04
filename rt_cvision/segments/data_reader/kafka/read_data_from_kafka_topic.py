@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from common_utils.services.kafka_manager import KafkaServiceManager, KafkaError
 
-kafka_config = {'bootstrap.servers': 'localhost:9092'}
+kafka_config = {'bootstrap.servers': 'kafka:9092'}
 kafka_manager = KafkaServiceManager(
     config=kafka_config,
 )
