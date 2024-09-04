@@ -4,7 +4,7 @@ from common_utils.detection.core import Detections
 
 
 model = BaseModels(
-    weights='/home/appuser/data/models/impurity/brewa-blu-sensorbox01-conveyor01_problematic_cls_v06.pt',
+    weights='/home/appuser/data/models/impurity/brewa-blu-sensorbox01-conveyor01_problematic_cls_v06.pt', task='impurity',
 )
 
 def predict(image):

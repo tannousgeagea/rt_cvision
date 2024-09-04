@@ -5,7 +5,7 @@ from configure.client import config_manager
 parameters = config_manager.params.get('segmentation')
 
 model = BaseModels(
-    weights=parameters.get('weights'),
+    weights=parameters.get('weights'), task='segments',
 )
 
 def predict(image):

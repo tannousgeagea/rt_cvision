@@ -118,6 +118,8 @@ RUN mkdir -p /var/log/supervisor && \
     chmod -R 755 /var/log/supervisor
 	
 
+COPY . /home/${user}/src
+
 COPY ./supervisord.conf /etc/supervisord.conf
 COPY ./entrypoint.sh /home/.
 RUN /bin/bash -c "chown $user:$user /home/entrypoint.sh"

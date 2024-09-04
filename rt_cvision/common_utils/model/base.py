@@ -4,17 +4,22 @@ import time
 import logging
 import numpy as np
 from ultralytics import YOLO
+from pathlib import Path
 
+base_dir = Path(__file__).parent
 
+print(base_dir)
 
 class BaseModels:
     def __init__(
             self,
             config_params=None,
             weights=None,
+            task=None,
 
     ):
         self.weights = weights
+        self.task = task
 
         if not config_params is None:
             self.weights = config_params['weights']
@@ -24,8 +29,12 @@ class BaseModels:
     def init_model(self):
         if not os.path.exists(self.weights):
             logging.warning("⚠️ Warning: Model weights %s does not exists" % self.weights)
-            if self.weights!='yolov8n.pt':  
+            if not os.path.exists(f"{base_dir}/weights/base.{self.task}.pt"):  
                 return None
+            
+            logging.info(f"Loading base model: {base_dir}/weights/base.{self.task}.pt")
+            return YOLO(f"{base_dir}/weights/base.{self.task}.pt")
+            
         
         logging.info(f'Model weights: {self.weights} successfully loaded! ✅')
         return YOLO(self.weights)
@@ -50,6 +59,9 @@ class BaseModels:
             if not results[0].masks is None:
                 final_results = self.write_result(final_results, 'xy', results[0].masks.xy)
                 final_results = self.write_result(final_results, 'xyn', results[0].masks.xyn)
+            else:
+                final_results = self.write_result(final_results, 'xy', [])
+                final_results = self.write_result(final_results, 'xyn', [])
                 
         return final_results
     
