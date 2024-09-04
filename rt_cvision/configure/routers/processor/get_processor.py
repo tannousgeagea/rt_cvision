@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 
 from configure.models import Service, ServiceParams
 from xmlrpc.client import ServerProxy
-server = ServerProxy('http://appuser:wasteantadmin@2024@localhost:19001/RPC2')
+server = ServerProxy(f'http://{os.environ["user"]}:{os.environ["password"]}@localhost:{os.environ["INET_HTTP_SERVER_PORT"]}/RPC2')
 
 class TimedRoute(APIRoute):
     def get_route_handler(self) -> Callable:
