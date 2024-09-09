@@ -23,7 +23,7 @@ def collect_messages(msg):
     try:
         info = msg.value().decode('utf-8')
         info = json.loads(info)
-        logging.info('Received message: {}'.format(info.keys()))
+        print('Received message: {}'.format(info.keys()))
     except Exception as err:
         logging.error(f'Error trying collect message from kafka: {err}')
         
@@ -34,7 +34,7 @@ def get_data(callback=None):
     
     if callback is None:
         def callback(messages):
-            logging.info(
+            print(
                 'please define a custom callback to process the message!' + \
                     f'\ncurrent message contains {tuple(messages.keys())}'
             )

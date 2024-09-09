@@ -14,7 +14,10 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 from common_utils.services.redis_manager import RedisManager
 from visualizes.interface.grpc import visualizes_service_pb2
 from visualizes.interface.grpc import visualizes_service_pb2_grpc
-from visualizes.tasks.publish import publish_image_to_ros
+from visualizes.tasks.publish import (
+    # publish_image_to_ros,
+    publish_image_to_ros2,
+)
 from visualizes.tasks.annotate.base import draw
 
 redis_manager = RedisManager(
@@ -42,19 +45,22 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
             for i in range(len(object_length_threshold) - 1)
         ] + [f'> {int(object_length_threshold[-1] * 100)} cm']
 
+        params={
+            "cv_image": retrieved_image.copy(),
+            "line_width": 3,
+            "colors": [(0, 255, 0), (0, 255, 255), (0, 0, 255)],
+            "objects": data,
+            "legend": labels,
+        }
+
         image = draw(
-            params={
-                "cv_image": retrieved_image.copy(),
-                "line_width": 3,
-                "colors": [(0, 255, 0), (0, 255, 255), (0, 0, 255)],
-                "objects": data,
-                "legend": labels,
-            }
+            params=params,
         )
         
-        success = publish_image_to_ros.execute(
-            cv_image=image,
-            topic='/sensor_processed/rgbmatrix_01/impurity_detection/live_mode'
+        params['cv_image'] = image
+        success = publish_image_to_ros2.execute(
+            params=params,
+            # topic='/sensor_processed/rgbmatrix_01/impurity_detection/live_mode'
         )
         
         result = json.dumps(
