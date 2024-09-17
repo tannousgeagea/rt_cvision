@@ -23,12 +23,12 @@ from configure.client import config_manager
 parameters = config_manager.params.get('impurity')
 
 tasks:dict = {
-    # 'draw': draw,
+    'draw': draw,
     'save_snapshot': save_snapshot,
     'save_experiment': save_experiment,
-    #'generate_video': generate_video,
-    #'send_email': send_email,
-    # 'save_results_into_db': save_results_into_db, 
+    'generate_video': generate_video,
+    'send_email': send_email,
+    'save_results_into_db': save_results_into_db, 
 }
 
 mapping_threshold:list = [0., 0.5, 1.]
@@ -112,10 +112,12 @@ class Processor:
                 }
             }
             
-            for key, func in tasks.items():
-                print(f"Executing {key} ... ", end='')
-                func(params)
-                print("Done")
+            for key, value in parameters.get('tasks', {}).items():
+                func = tasks.get(key)
+                if value:
+                    print(f"Executing {key} ... ", end='')
+                    func(params)
+                    print("Done")
             
         except Exception as err:
             logging.error(f"Error while executing detections in impurity: {err}")
