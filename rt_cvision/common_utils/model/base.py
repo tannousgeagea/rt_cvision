@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from ultralytics import YOLO
 from pathlib import Path
+from .mlflow.core import pull
 
 base_dir = Path(__file__).parent
 
@@ -16,10 +17,12 @@ class BaseModels:
             config_params=None,
             weights=None,
             task=None,
+            mlflow=False,
 
     ):
         self.weights = weights
         self.task = task
+        self.mlflow = mlflow
 
         if not config_params is None:
             self.weights = config_params['weights']
@@ -27,6 +30,9 @@ class BaseModels:
         self.model = self.init_model()
 
     def init_model(self):
+        if self.mlflow:
+            return pull(self.weights)
+            
         if not os.path.exists(self.weights):
             logging.warning("⚠️ Warning: Model weights %s does not exists" % self.weights)
             if not os.path.exists(f"{base_dir}/weights/base.{self.task}.pt"):  
@@ -42,7 +48,8 @@ class BaseModels:
     def classify_one(self, image, conf=0.25, mode='detect', classes=None):
         final_results = {}
         if self.model:
-            results = self.model.track(image, persist=True, conf=conf, classes=classes) if mode=='track' else self.model.predict(image, conf=conf, classes=classes)
+            # results = self.model.track(image, persist=True, conf=conf, classes=classes) if mode=='track' else self.model.predict(image, conf=conf, classes=classes)
+            results = self.track(image, conf=conf, classes=classes) if mode=="track" else self.predict(image, conf=conf)
             
             final_results = self.write_result(final_results, 'class_names', results[0].names)
             if not results[0].probs is None:
@@ -72,3 +79,12 @@ class BaseModels:
         result[key] = value
 
         return result
+    
+    def predict(self, image, conf:float=0.25):
+        return self.model.predict(image, conf=conf)
+    
+    def track(self, image, conf:float=0.25, classes=None):
+        if self.mlflow:
+            return self.model.unwrap_python_model().track(image, conf=conf)
+        
+        return self.model.track(image, persist=True, conf=conf, classes=classes)
