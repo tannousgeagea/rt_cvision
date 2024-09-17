@@ -35,7 +35,7 @@ def read_data(params, callback=None):
             images = examine_src(params["src"], VALID_FORMAT)
             for image in images:
                 ACQUISITION_RATE = redis_manager.redis_client.get("ACQUISITION_RATE") or DEFAULT_ACQUISITION_RATE
-                logging.info(f'Publishing at {int(ACQUISITION_RATE)} fps')
+                logging.info(f'Publishing at {ACQUISITION_RATE} fps')
                 logging.info(f'{len(images)} Found : {len(processed)} Processed !')
                 if image in processed:
                     logging.info(f'{image} already processed')
@@ -58,7 +58,7 @@ def read_data(params, callback=None):
                 
                 callback(payload)
                 processed.append(image)
-                time.sleep(1 / int(ACQUISITION_RATE))
+                time.sleep(1 / (int(ACQUISITION_RATE) + 1))
     except Exception as err:
-        logging.error(f'Error reading data from files: {src}: {err}')
+        logging.error(f'Error reading data from files: {err}')
 

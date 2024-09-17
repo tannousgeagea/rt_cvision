@@ -3,7 +3,7 @@ import mlflow
 import logging
 from ultralytics import YOLO
 from mlflow.tracking import MlflowClient
-from utils import print_model_info, print_model_version_info
+from common_utils.model.mlflow_model.utils import print_model_info, print_model_version_info
 
 # Initialize the MLflow Client
 mlflow.set_tracking_uri(f"{os.getenv('MLFLOW_TRACKING_URI')}")

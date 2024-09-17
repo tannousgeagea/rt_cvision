@@ -19,26 +19,29 @@ from impurity.tasks.check_objects import (
     check_object_problematic,
 )
 
+from configure.client import config_manager
+parameters = config_manager.params.get('impurity')
+
 tasks:dict = {
     # 'draw': draw,
     'save_snapshot': save_snapshot,
     'save_experiment': save_experiment,
     #'generate_video': generate_video,
     #'send_email': send_email,
-    'save_results_into_db': save_results_into_db, 
+    # 'save_results_into_db': save_results_into_db, 
 }
 
 mapping_threshold:list = [0., 0.5, 1.]
 mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 0, 255)],
 mapping_key:str = 'object_length'
-iou_threshold:float = 0.45
+iou_threshold:float = parameters.get('iou_threshold')
 line_width:int = 3
 
-snapshot_dir:str = "/home/appuser/data/snapshots"
-experiment_dir:str =  "/home/appuser/data/experiments"
-db_url:str = "http://localhost:16052/api/v1/event/waste_impurity"
-email_url:str = "http://localhost:17042/api/v1/event"
-video_url:str = "http://localhost:18042/api/v1/event/genereta_video"
+snapshot_dir:str = parameters.get('snapshot_dir')
+experiment_dir:str =  parameters.get('experiment_dir')
+db_url:str = parameters.get('db_url')
+email_url:str = parameters.get('email_url')
+video_url:str = parameters.get("video_url")
 classes:list = [1, 2]
 
 
@@ -99,7 +102,7 @@ class Processor:
                 "event_description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
                 "snapshot_url": f"/alarms/snapshots/stoerstoff/{data.get('filename')}",
                 "snapshot_id": str(uuid.uuid4()),
-                "model_name": 'wasteant-impurity-detection-gml-luh',
+                "model_name": parameters.get('weights'),
                 "model_tag": 'v003',
                 "db_url": db_url,
                 "objects": problematic_objects,

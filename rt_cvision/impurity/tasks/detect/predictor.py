@@ -1,10 +1,11 @@
 import logging
 from common_utils.model.base import BaseModels
 from common_utils.detection.core import Detections
-
+from configure.client import config_manager
+parameters = config_manager.params.get('impurity')
 
 model = BaseModels(
-    weights='/home/appuser/data/models/impurity/brewa-blu-sensorbox01-conveyor01_problematic_cls_v06.pt', task='impurity',
+    weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
 )
 
 def predict(image):

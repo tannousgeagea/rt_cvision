@@ -3,13 +3,14 @@ import cv2
 import time
 import logging
 import numpy as np
+from .mlflow_model.core import pull
 from ultralytics import YOLO
 from pathlib import Path
-from .mlflow.core import pull
+
+import sys
 
 base_dir = Path(__file__).parent
-
-print(base_dir)
+sys.path.append(str(base_dir / 'mlflow_model'))
 
 class BaseModels:
     def __init__(
@@ -81,6 +82,9 @@ class BaseModels:
         return result
     
     def predict(self, image, conf:float=0.25):
+        if self.mlflow:
+            return self.model.unwrap_python_model().predict(None, image, conf=conf)
+        
         return self.model.predict(image, conf=conf)
     
     def track(self, image, conf:float=0.25, classes=None):
