@@ -107,7 +107,7 @@ def read_data(params, callback=None,  args=None):
         if keep_track_of_time.check_if_time_less_than_diff(
             start=keep_track_of_time.what_is_the_time, 
             end=time.time(), 
-            diff=(1 / int(ACQUISITION_RATE))
+            diff=(1 / (int(ACQUISITION_RATE) + 1))
             ):
             print("ignoring ... ... ")
             return
