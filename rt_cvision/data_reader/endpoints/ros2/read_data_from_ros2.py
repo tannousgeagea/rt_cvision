@@ -5,7 +5,7 @@ import rclpy
 import logging
 from rclpy.node import Node
 from datetime import datetime
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge, CvBridgeError
 from common_utils.services.redis_manager import RedisManager
 from common_utils.time_utils import KeepTrackOfTime
@@ -32,12 +32,12 @@ print(f'ROS DISTRO: {os.environ.get("ROS_DISTRO")}')
 print(os.environ)
 
 class ImageSubscriber(Node):
-    def __init__(self, topic, callback=None):
+    def __init__(self, topic, msg_type, callback=None):
         
         super().__init__('ros2_image_subscriber')
         print(f"Listening to Topic: {topic}")
         self.subscription = self.create_subscription(
-            Image,
+            Image if msg_type=="image" else CompressedImage,
             topic,
             callback,
             10  # QoS (Quality of Service) profile depth
@@ -116,7 +116,7 @@ def read_data(params, callback=None,  args=None):
         messages = collect_messages(data)
         callback(messages)  
 
-    image_subscriber = ImageSubscriber(topic=params['ros_topic'], callback=_callback)
+    image_subscriber = ImageSubscriber(topic=params['ros_topic'], msg_type=params['msg_type'], callback=_callback)
     rclpy.spin(image_subscriber)
     
     
