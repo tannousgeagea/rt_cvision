@@ -19,12 +19,15 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
 
     def load_context(self, context):
         # Load the YOLO model
-        self.model = YOLO(self.weights)
+        self.model = YOLO(context.artifacts['weights'])
         
     def predict(self, context, model_input:str, conf:float=0.25, mode='detect'):
         results = self.model.predict(model_input, conf=conf) if mode=="detect" else self.model.track(model_input, conf=conf, persist=True)
         return results
     
+    def infer(self, model_input:str, conf:float=0.25):
+        return self.model.predict(model_input, conf=conf)
+     
     def track(self, model_input:str, conf:float=0.25):
         return self.model.track(model_input, conf=conf, persist=True)
     
