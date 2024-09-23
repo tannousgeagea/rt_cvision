@@ -20,7 +20,7 @@ class ServiceAdmin(admin.ModelAdmin):
 class ServiceParamsAdmin(admin.ModelAdmin):
     list_display = ('service', 'name', 'value_type', 'input_type', 'created_at')
     search_fields = ('service__service_name', 'name', 'description')
-    list_filter = ('value_type', 'created_at')
+    list_filter = ('value_type', 'created_at', "service__service_name")
     readonly_fields = ('created_at',)
     fieldsets = (
         (None, {
