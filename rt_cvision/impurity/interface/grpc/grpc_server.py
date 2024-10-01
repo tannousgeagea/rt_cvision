@@ -41,7 +41,7 @@ class ServiceImpl(impurity_service_pb2_grpc.ComputingUnitServicer):
         assert not retrieved_image is None, f'Retrieved image is None'
         
         detections = predictor.predict(image=retrieved_image)
-        processor.execute(detections=detections, cv_image=retrieved_image, data=data, classes=[1, 2])
+        processor.execute(detections=detections, cv_image=retrieved_image, data=data, classes=None)
         
         result = json.dumps(
             {

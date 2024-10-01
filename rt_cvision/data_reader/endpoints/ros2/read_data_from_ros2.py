@@ -79,7 +79,7 @@ def collect_messages(data):
             dt = datetime.now()
             messages = extract_data_from_topic(msg, messages)
             messages['datetime'] = dt.strftime(DATETIME_FORMAT)
-            messages ['filename'] = dt.strftime("%Y-%m-%d_%H-%M-%S")
+            messages ['filename'] = f'{dt.strftime("%Y-%m-%d_%H-%M-%S")}.jpg'
             
     except Exception as err:
         logging.error(f"Unexpected error in extracting messages: {err}")

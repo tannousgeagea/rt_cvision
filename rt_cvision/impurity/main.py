@@ -32,7 +32,7 @@ tasks:dict = {
 }
 
 mapping_threshold:list = [0., 0.5, 1.]
-mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 0, 255)],
+mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 0, 255)]
 mapping_key:str = 'object_length'
 iou_threshold:float = parameters.get('iou_threshold')
 line_width:int = 3
