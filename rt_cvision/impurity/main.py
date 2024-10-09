@@ -6,11 +6,13 @@ import logging
 import threading
 import numpy as np
 from typing import Optional, Dict
+from datetime import datetime, timezone
 from impurity.tasks.annotate.base import draw
 from impurity.tasks.email.notifify import send_email
 from common_utils.detection.utils import box_iou_batch
 from impurity.tasks.video.generate import generate_video
 from common_utils.detection.core import Detections
+from impurity.tasks.delivery.core  import get
 from impurity.tasks.database.register import save_results_into_db
 from impurity.tasks.snapshot.save import save_snapshot, save_experiment
 from impurity.tasks.check_objects import (
@@ -90,6 +92,12 @@ class Processor:
                 }
             )
             
+            delivery_id = get(
+                url="http://delivery-manager:18806/api/v1/gate/gate03",
+                params={
+                    "timestamp": datetime.now(tz=timezone.utc)
+                }
+            )
             params = {
                 "cv_image": cv_image,
                 "snapshot": alarm_image,
@@ -106,7 +114,7 @@ class Processor:
                 "model_tag": 'v003',
                 "db_url": db_url,
                 "objects": problematic_objects,
-                "delivery_id": "keine Zuordnung",
+                "delivery_id": delivery_id,
                 "meta_info": {
                     "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
                 }
