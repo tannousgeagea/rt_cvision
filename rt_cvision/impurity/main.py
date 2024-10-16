@@ -14,6 +14,7 @@ from impurity.tasks.video.generate import generate_video
 from common_utils.detection.core import Detections
 from impurity.tasks.delivery.core  import get
 from impurity.tasks.database.register import save_results_into_db
+from impurity.tasks.edge_to_cloud.core import sync_media_to_cloud
 from impurity.tasks.snapshot.save import save_snapshot, save_experiment
 from impurity.tasks.check_objects import (
     check_object_severity_level,
@@ -30,7 +31,8 @@ tasks:dict = {
     'save_experiment': save_experiment,
     'generate_video': generate_video,
     'send_email': send_email,
-    'save_results_into_db': save_results_into_db, 
+    'save_results_into_db': save_results_into_db,
+    "sync_media_to_cloud": sync_media_to_cloud,
 }
 
 mapping_threshold:list = [0., 0.5, 1.]
