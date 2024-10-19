@@ -6,18 +6,18 @@ from common_utils.sync.core import sync
 
 
 def sync_media_to_cloud(
-    url:str,
-    media_file:str,
     params:dict
 ):
     
     try:
+        assert 'edge_2_cloud_url' in params, f'Missing argument in sync_media_to_cloud: edge_2_cloud_url'
         assert 'event_uid' in params, f'Missing argument in sync_media_to_cloud: event_uid'
+        assert 'media_file' in params, f"Missing argument in sync_media_to_cloud: media_file"
         assert 'filename' in params, f'Missing argument in sync_media_to_cloud: filename'
 
         sync(
-            url=url,
-            media_file=media_file,
+            url=params['edge_2_cloud_url'],
+            media_file=params['media_file'],
             params={
                 "event_id": params['event_uid'],
                 "source_id": "impurity",

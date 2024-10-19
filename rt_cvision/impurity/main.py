@@ -35,8 +35,8 @@ tasks:dict = {
     "sync_media_to_cloud": sync_media_to_cloud,
 }
 
-mapping_threshold:list = [0., 0.5, 1.]
-mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 0, 255)]
+mapping_threshold:list = [0., 0.3, 0.5, 1.]
+mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)]
 mapping_key:str = 'object_length'
 iou_threshold:float = parameters.get('iou_threshold')
 line_width:int = 3
@@ -46,6 +46,9 @@ experiment_dir:str =  parameters.get('experiment_dir')
 db_url:str = parameters.get('db_url')
 email_url:str = parameters.get('email_url')
 video_url:str = parameters.get("video_url")
+edge_2_cloud_url:str = parameters.get('edge_2_cloud_url')
+delivery_api_url:str = parameters.get('delivery_api_url')
+
 classes:list = [1, 2]
 
 
@@ -95,7 +98,7 @@ class Processor:
             )
             
             delivery_id = get(
-                url="http://delivery-manager:18806/api/v1/gate/gate03",
+                url=delivery_api_url,
                 params={
                     "timestamp": datetime.now(tz=timezone.utc)
                 }
@@ -117,6 +120,8 @@ class Processor:
                 "db_url": db_url,
                 "objects": problematic_objects,
                 "delivery_id": delivery_id,
+                "edge_2_cloud_url": edge_2_cloud_url,
+                "media_file": f"{snapshot_dir}/{data.get('filename')}",
                 "meta_info": {
                     "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
                 }
@@ -172,8 +177,3 @@ class Processor:
             logging.error(f'Unexpected Error while registering objects: {err}')
             
         return new_objects
-
-
-if __name__ == "__main__":
-    from common_utils.detection.utils import box_iou_batch
-    
