@@ -87,11 +87,8 @@ services:
       - redis
       - kafka
     volumes:
-      - .:/home/$user/src
-      - /media/$user/rt_cvision:/media/$user/rt_cvision
-      # - /media/$user/mlflow:/media/$user/mlflow
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - models:/artifact_downloads
+      - data:/home/$user/src/rt_cvision
+      - media:/media/$user/rt_cvision
     user: ${user}
     environment:
       ros_version: ros2
@@ -112,7 +109,10 @@ services:
 volumes:
   cache:
     driver: local
-  models:
+  media:
+    driver: local
+  data:
+    driver: local
 
 networks:
   rt-cvision-network:
