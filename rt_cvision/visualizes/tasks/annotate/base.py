@@ -4,6 +4,10 @@ import numpy as np
 from datetime import datetime
 from common_utils.annotate.core import Annotator
 from common_utils.detection.convertor import xyxyn2xyxy
+from visualizes.tasks.severity_level.mapping import SEVERITY_LEVEL_MAP_BY_SIZE
+from common_utils.timezone_utils.timeloc  import get_location_and_timezone, convert_to_local_time
+
+timezone_str = get_location_and_timezone()
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -25,15 +29,21 @@ def draw(params):
         colors = params.get('colors')
 
         for i, box in enumerate(objects['xyxyn']):
+            sv = SEVERITY_LEVEL_MAP_BY_SIZE(
+                o=objects['object_length'][i],
+                thresholds=params['thresholds'],
+            )
+            
+            color = colors[sv]
             box = xyxyn2xyxy(box, image_shape=annotator.im.shape)
             annotator.box_label(
                 box=box,
                 label=f"{round(objects['object_length'][i] * 100)} cm",
-                color=(0, 255, 0),
+                color=color,
             )
 
         annotator.add_legend(
-            legend_text=datetime.now().strftime(DATETIME_FORMAT),
+            legend_text=convert_to_local_time(utc_time=datetime.now(), timezone_str=timezone_str).strftime(DATETIME_FORMAT),
             font_scale=2,
             font_thickness=2
         )

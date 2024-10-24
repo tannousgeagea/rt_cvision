@@ -103,17 +103,21 @@ class Processor:
                     "timestamp": datetime.now(tz=timezone.utc)
                 }
             )
+            
+            event_uid = str(uuid.uuid4())
+            filename = f"{event_uid}_{data.get('filename')}"
+            
             params = {
                 "cv_image": cv_image,
                 "snapshot": alarm_image,
                 "snapshot_dir": snapshot_dir,
-                "filename": data.get('filename'),
+                "filename": filename,
                 "experiment_dir": experiment_dir,
                 "timestamp": data.get('datetime'),
                 "severity_level": problematic_objects.get('severity_level'),
-                "event_uid": str(uuid.uuid4()),
+                "event_uid": event_uid,
                 "event_description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
-                "snapshot_url": f"/alarms/snapshots/stoerstoff/{data.get('filename')}",
+                "snapshot_url": f"/alarms/snapshots/stoerstoff/{filename}",
                 "snapshot_id": str(uuid.uuid4()),
                 "model_name": parameters.get('weights'),
                 "model_tag": 'v003',
@@ -121,7 +125,7 @@ class Processor:
                 "objects": problematic_objects,
                 "delivery_id": delivery_id,
                 "edge_2_cloud_url": edge_2_cloud_url,
-                "media_file": f"{snapshot_dir}/{data.get('filename')}",
+                "media_file": f"{snapshot_dir}/{filename}",
                 "meta_info": {
                     "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
                 }

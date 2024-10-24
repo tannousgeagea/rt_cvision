@@ -90,7 +90,7 @@ def pull(model_name, run_id:str=None):
         model_uri = model_uri = f"models:/{model_name}/{model_version.version}"
         
     logging.info(f"MODEL_URI: {model_uri}")
-    local_dir = f"/artifact_downloads/{model_name}"
+    local_dir = f"/tmp/artifact_downloads/{model_name}"
     if not os.path.exists(local_dir):
         logging.info(f'Model {model_name} does not exist in {local_dir} ! Downloading ...')
         

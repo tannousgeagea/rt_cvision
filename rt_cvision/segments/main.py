@@ -7,7 +7,12 @@ from segments.tasks.database import register
 from common_utils.detection.core import Detections
 from segments.tasks.object_size.estimate_object_size import ObjectSizeEst
 from segments.tasks.publish.core import publish_to_kafka
+from common_utils.timezone_utils.timeloc import get_location_and_timezone, convert_to_local_time
 from configure.client import config_manager
+
+
+timezone_str = get_location_and_timezone()
+logging.info(f"Local Timezone: {timezone_str}")
 
 parameters = config_manager.params.get('segmentation')
 
@@ -15,6 +20,8 @@ tasks = {
     'publish_to_kafka': publish_to_kafka,
     'save_results_into_db': register.save_results_into_db, 
 }
+
+
 
 class Processor:
     def __init__(self) -> None:

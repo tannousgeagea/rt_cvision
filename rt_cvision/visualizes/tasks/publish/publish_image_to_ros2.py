@@ -4,6 +4,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
+from configure.client import config_manager
+parameters = config_manager.params.get('visualizer')
 
 class ImagePublisher(Node):
     def __init__(self, topic):
@@ -18,7 +20,7 @@ class ImagePublisher(Node):
             print('Published an image to image_topic')
 
 rclpy.init(args=None)
-image_publisher = ImagePublisher(topic='/sensor_processed/rgbmatrix_01/impurity_detection/live_mode')
+image_publisher = ImagePublisher(topic=parameters.get('ros_pub_topic'))
 
 def execute(params):
     try:

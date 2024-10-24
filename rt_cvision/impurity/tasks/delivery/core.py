@@ -16,7 +16,7 @@ def get(url, params):
             logging.error(f"Failed to get delivery id: {response.status_code}: {response.json()}")
             return delivery_id
             
-        delivery_id = response.json().get('delivery_id')
+        delivery_id = response.json().get('delivery_uid')
     
     except HTTPError as err:
         logging.error(f"HTTPError getting delivery id: {err}")

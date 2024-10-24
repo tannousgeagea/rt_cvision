@@ -4,6 +4,9 @@ import numpy as np
 from datetime import datetime
 from common_utils.annotate.core import Annotator
 from common_utils.detection.convertor import xyxyn2xyxy
+from common_utils.timezone_utils.timeloc import get_location_and_timezone, convert_to_local_time
+
+timezone_str = get_location_and_timezone()
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -38,7 +41,7 @@ def draw(params):
             )
 
         annotator.add_legend(
-            legend_text=datetime.now().strftime(DATETIME_FORMAT),
+            legend_text=convert_to_local_time(datetime.now(), timezone_str=timezone_str).strftime(DATETIME_FORMAT),
             font_scale=2,
             font_thickness=2
         )
