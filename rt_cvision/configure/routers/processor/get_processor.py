@@ -37,6 +37,9 @@ class TimedRoute(APIRoute):
         return custom_route_handler
 
 
+def get_status(items):
+    return "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
+
 router = APIRouter(
     prefix="/api/v1",
     tags=["Service"],
@@ -50,16 +53,14 @@ router = APIRouter(
 def get_service(response: Response):
     results = {}
     try:
-        row = []
         grouped_data = defaultdict(list)
-        row = server.supervisor.getAllProcessInfo()
-        for item in row:
+        items = server.supervisor.getAllProcessInfo()
+        for item in items:
+            status = "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
             grouped_data[item['group']].append(item)
         
-        results = {
-            'data': grouped_data,
-        }
-            
+        results = {"data": [{"id": group, "service_name": group, "status": get_status(config), "is_active": True, "items": config} for group, config in grouped_data.items()]}
+     
     except HTTPException as e:
         results['error'] = {
             "status_code": "not found",

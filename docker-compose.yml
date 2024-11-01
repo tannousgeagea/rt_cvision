@@ -87,6 +87,7 @@ services:
       - redis
       - kafka
     volumes:
+      - ./:/home/$user/src
       - data:/home/$user/src/rt_cvision/sqlite
       - media:/media/$user/rt_cvision
     user: ${user}
