@@ -139,3 +139,44 @@ def get_data_from_list(
     subset_data = [data[i] for i in index]
     
     return subset_data
+
+def adjust_to_original(coords, offset, crop_size, original_size, mode='xyxy'):
+    """
+    Adjusts coordinates to the original image space for various formats.
+    
+    Parameters:
+    - coords (np.ndarray): Coordinates to adjust (either `xyxy`, `xyxyn`, `xy`, or `xyn`).
+    - offset (tuple): The top-left corner (x_min, y_min) of the cropped region in the original image.
+    - crop_size (tuple): Width and height of the cropped region (w, h).
+    - original_size (tuple): Width and height of the original image (W, H).
+    - mode (str): Mode of coordinates, one of 'xyxy', 'xyxyn', 'xy', or 'xyn'.
+    
+    Returns:
+    - adjusted_coords (np.ndarray): Coordinates adjusted to the original image space.
+    """
+    x_min, y_min = offset
+    crop_h, crop_w = crop_size
+    original_h, original_w = original_size
+    if mode == 'xyxy':
+        adjusted_coords = coords + np.array([x_min, y_min, x_min, y_min])
+    
+    elif mode == 'xyxyn':
+        adjusted_coords = coords.copy()
+        adjusted_coords[0] = (coords[0] * crop_w + x_min) / original_w  # x1 normalized
+        adjusted_coords[1] = (coords[1] * crop_h + y_min) / original_h  # y1 normalized
+        adjusted_coords[2] = (coords[2] * crop_w + x_min) / original_w  # x2 normalized
+        adjusted_coords[3] = (coords[3] * crop_h + y_min) / original_h  # y2 normalized
+    
+    
+    elif mode == 'xy':
+        adjusted_coords = coords + np.array([x_min, y_min])
+    
+    elif mode == 'xyn':
+        adjusted_coords = coords.copy()
+        adjusted_coords[:, 0] = (coords[:, 0] * crop_w + x_min) / original_w  # x normalized
+        adjusted_coords[:, 1] = (coords[:, 1] * crop_h + y_min) / original_h  # y normalized
+    
+    else:
+        raise ValueError("Mode should be one of 'xyxy', 'xyxyn', 'xy', or 'xyn'")
+    
+    return adjusted_coords

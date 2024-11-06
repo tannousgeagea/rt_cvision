@@ -3,7 +3,7 @@ import os
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional, Iterator, Dict, Tuple, Union, List
-from .utils import box_non_max_suppression, get_data_item, get_data_from_list
+from .utils import box_non_max_suppression, get_data_item, get_data_from_list, adjust_to_original
 from .convertor import xyxy2xywh
 
 @dataclass
@@ -251,49 +251,18 @@ class Detections:
         os.makedirs(os.path.dirname(txt_file), exist_ok=True)
         with open(txt_file, "w") as f:
             f.writelines(lines)
-
-
-if __name__ == "__main__":
-    
-    from ultralytics import YOLO
-    import cv2
-    from glob import glob
-    from common_utils.annotate.core import Annotator
-    from convertor import extract_xyxy_from_txtfile
-    from convertor import xywh2xyxy, xyxyn2xyxy
-    
-    models = YOLO('/home/appuser/data/models/yolov8-seg.gml_luh_v02.pt')
-    images = glob('/home/appuser/data/images/*.jpg')
-    for image in images:
-        # image = '/home/appuser/data/images/StoerstofDetection_1722417190295263995_mp4-0006.jpg'
-        cv_image = cv2.imread(image)
-        result = models.predict(image, conf=0.05)
-        
-        boxes = result[0].boxes
-        masks = result[0].masks
-        
-        detections = Detections(
-            xyxy=boxes.xyxy.cpu().numpy(),
-            xyxyn=boxes.xyxyn.cpu().numpy(),
-            xy=masks.xy,
-            xyn=masks.xyn,
-            class_id=boxes.cls.cpu().numpy(),
-            confidence=boxes.conf.cpu().numpy(),  
+            
+    def adjust_to_roi(self, offset, crop_size, original_size) -> 'Detections':
+        return Detections(
+            xyxy=np.array([adjust_to_original(xyxy, offset=offset, crop_size=crop_size, original_size=original_size, mode='xyxy') for xyxy in self.xyxy]),
+            xyxyn=np.array([adjust_to_original(xyxyn, offset=offset, crop_size=crop_size, original_size=original_size, mode='xyxyn') for xyxyn in self.xyxyn]),
+            xy=[adjust_to_original(xy, offset=offset, crop_size=crop_size, original_size=original_size, mode='xy') for xy in self.xy] if self.xy is not None else None,
+            xyn=[adjust_to_original(xyn, offset=offset, crop_size=crop_size, original_size=original_size, mode='xyn') for xyn in self.xyn] if self.xyn is not None else None,
+            confidence=self.confidence,
+            class_id=self.class_id,
+            tracker_id=self.tracker_id,
+            object_length=self.object_length,
+            object_area=self.object_area,
         )
-        
-        
-        
-        filename = os.path.basename(image).split('.jpg')[0] + '.txt'
-        detections.to_txt(txt_file=f'/home/appuser/data/labels/{filename}', task='segment')
-        print(len(detections))
-        
-        # class_id, boxes = extract_xyxy_from_txtfile(txt_file=f'/home/appuser/data/labels/{filename}')
-        # annotator = Annotator(im=cv_image.copy(), line_width=2)
-        # for xyxyn in boxes:
-        #     xyxy = xyxyn2xyxy(xyxyn=xyxyn, image_shape=cv_image.shape)        
-        #     annotator.box_label(box=xyxy)
-
-        # cv2.imwrite(f'/home/appuser/data/{os.path.basename(image)}', annotator.im.data)
-
     
     
