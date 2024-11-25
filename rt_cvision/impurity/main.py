@@ -46,6 +46,7 @@ experiment_dir:str =  parameters.get('experiment_dir')
 db_url:str = parameters.get('db_url')
 email_url:str = parameters.get('email_url')
 video_url:str = parameters.get("video_url")
+topic:str = parameters.get('topic', "/front/rgb_left")
 edge_2_cloud_url:str = parameters.get('edge_2_cloud_url')
 delivery_api_url:str = parameters.get('delivery_api_url')
 
@@ -105,7 +106,7 @@ class Processor:
             )
             
             event_uid = str(uuid.uuid4())
-            filename = f"{event_uid}_{data.get('filename')}"
+            filename = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{event_uid}.jpg"
             
             params = {
                 "cv_image": cv_image,
@@ -122,6 +123,9 @@ class Processor:
                 "model_name": parameters.get('weights'),
                 "model_tag": 'v003',
                 "db_url": db_url,
+                "video_url": video_url,
+                "gate_id": os.getenv('GATE_ID', 'gate03'),
+                "topic": topic,
                 "objects": problematic_objects,
                 "delivery_id": delivery_id,
                 "edge_2_cloud_url": edge_2_cloud_url,
