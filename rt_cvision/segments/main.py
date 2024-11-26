@@ -21,8 +21,6 @@ tasks = {
     'save_results_into_db': register.save_results_into_db, 
 }
 
-
-
 class Processor:
     def __init__(self) -> None:
         self.map_tracker_id_2_object_uid = {}

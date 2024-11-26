@@ -2,6 +2,8 @@ import logging
 from common_utils.model.base import BaseModels
 from common_utils.detection.core import Detections
 from configure.client import config_manager
+from common_utils.filters.core import FilterEngine
+
 parameters = config_manager.params.get('segmentation')
 
 model = BaseModels(
@@ -9,8 +11,16 @@ model = BaseModels(
 )
 
 roi = parameters.get('roi')
-logging.info(f'ROI: {roi}')
-
+filter_config = parameters.get('filter_config')
+filter_engine = FilterEngine()
+if filter_config:
+    for obj_type, filter_model in filter_config.items():
+        filter_engine.add_model(
+            object_type=obj_type,
+            detection_model=filter_model["model_path"],
+            mlflow=filter_model["mlflow"]
+        )
+        
 def predict(image):
     detections = Detections.from_dict({})
     try:
@@ -35,6 +45,14 @@ def predict(image):
                 crop_size=c_image.shape[:2],
                 original_size=image.shape[:2],
             )
+            
+        if filter_config:
+            filtered_results = filter_engine.filter_objects(
+                image=image,
+                segmentation_results=detections,
+                filter_types=list(filter_config.keys()),
+            )
+            detections = detections[filtered_results]
         
     except Exception as err:
         logging.error(f'Unexpected Error in Segmentation: {err}')
