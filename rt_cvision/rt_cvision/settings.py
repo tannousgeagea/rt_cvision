@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -32,6 +36,7 @@ ALLOWED_HOSTS = [os.getenv("ALLOWED_HOST", "0.0.0.0"), os.getenv("Systenname", '
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -39,6 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'configure',
+    'data_reader',
+    'impurity',
 ]
 
 MIDDLEWARE = [
@@ -123,3 +130,79 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+UNFOLD = {
+    "SITE_HEADER": _("Data Hub"),
+    "SITE_TITLE": _("Data Hub"),
+    "SITE_SYMBOL": "hub",
+    # "SITE_LOGO": {
+    #     "light": lambda r: static("wa-logo-green.png"),  # light mode
+    #     "dark": lambda r: static("wa-logo-white.png"),  # dark mode
+    # },
+    # "LOGIN": {
+    #     "image": lambda r: static("login-bg.png"),
+    #     # "redirect_after": lambda r: reverse_lazy("admin:APP_MODEL_changelist"),
+    # },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("Navigation"),
+                "items": [
+                    {
+                        "title": _("All Apps"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                ]
+            },
+            {
+                "title": _("Configuration"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Services"),
+                        "icon": 'linked_services',
+                        "link": reverse_lazy(
+                            "admin:configure_service_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Service Parameters"),
+                        "icon": 'settings',
+                        "link": reverse_lazy(
+                            "admin:configure_serviceparams_changelist"
+                        ),
+                    },
+                ]
+            },
+            {
+                "title": _("Data"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Images"),
+                        "icon": 'image',
+                        "link": reverse_lazy(
+                            "admin:data_reader_image_changelist"
+                        ),
+                    },
+                ]
+            },
+            {
+                "title": _("Impurities"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Impurity"),
+                        "icon": 'comedy_mask',
+                        "link": reverse_lazy(
+                            "admin:impurity_impurity_changelist"
+                        ),
+                    },
+                ]
+            },
+        ],
+    },
+}
