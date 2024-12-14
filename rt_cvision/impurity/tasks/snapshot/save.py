@@ -57,12 +57,11 @@ def save_experiment(params):
         image.save()
         
         objects = params.get('objects')
-        for i, xyxyn in objects.get('xyxyn'):
+        for i, xyxyn in enumerate(objects.get('xyxyn')):
             wi = Impurity(
                 image=image,
                 object_uid=objects.get('object_uid')[i],
                 timestamp=datetime.now(tz=timezone.utc),
-                tracker_id=objects.get('tracker_id')[i],
                 confidence_score=objects.get('confidence_score')[i],
                 class_id=objects.get('severity_level')[i],
                 object_length=objects.get('object_length')[i],

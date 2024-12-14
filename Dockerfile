@@ -98,6 +98,7 @@ RUN pip3 install mlflow
 RUN pip3 install azureml-mlflow
 RUN pip3 install django-unfold
 RUN pip3 install ultralytics==8.3.34
+RUN pip3 install numpy==1.26.4
 
 # upgrade everything
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -q -y \

@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+/bin/bash -c "python3 /home/$user/src/rt_cvision/manage.py makemigrations"
+/bin/bash -c "python3 /home/$user/src/rt_cvision/manage.py migrate"
+# /bin/bash -c "python3 /home/$user/src/rt_cvision/manage.py create_superuser"
+
 # Start supervisord as a background process
 sudo -E supervisord -c /etc/supervisord.conf &
 
