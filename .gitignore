@@ -4,5 +4,5 @@ log
 *run*
 # config
 data
-config
+# config
 .env

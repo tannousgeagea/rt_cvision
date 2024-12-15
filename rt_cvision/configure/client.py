@@ -1,6 +1,13 @@
 import django
 django.setup()
 from configure.models import Service, ServiceParams
+from impurity.models import (
+    Impurity
+)
+
+from data_reader.models import (
+    Image
+)
 
 class ConfigManager:
     def __init__(self):            

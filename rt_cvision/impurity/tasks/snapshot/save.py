@@ -1,7 +1,6 @@
 import os
 import cv2
-import django
-django.setup()
+
 import logging
 from django.core.files.base import ContentFile
 
@@ -9,12 +8,13 @@ from datetime import (
     datetime,
     timezone
 )
-from impurity.models import (
-    Impurity
-)
 
 from data_reader.models import (
     Image
+)
+
+from impurity.models import (
+    Impurity,
 )
 
 
@@ -58,7 +58,7 @@ def save_experiment(params):
         
         objects = params.get('objects')
         for i, xyxyn in enumerate(objects.get('xyxyn')):
-            wi = Impurity(
+            wi = Impurity.objects.create(
                 image=image,
                 object_uid=objects.get('object_uid')[i],
                 timestamp=datetime.now(tz=timezone.utc),
@@ -67,7 +67,7 @@ def save_experiment(params):
                 object_length=objects.get('object_length')[i],
                 object_coordinates=xyxyn,
             )
-            wi.save()
+            # wi.save()
                     
     except Exception as err:
         logging.error(f"Error saving impurity experiment images {params.get('filename')}: {err}")

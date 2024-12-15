@@ -19,3 +19,6 @@ class Impurity(models.Model):
         
     def __str__(self):
         return f"Object {self.object_uid} ({self.class_id}) ({self.object_uid})"
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs) 
