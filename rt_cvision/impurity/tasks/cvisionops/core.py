@@ -32,22 +32,24 @@ def execute(self, instance, **kwargs):
         wi = Impurity.objects.get(id=instance)
         image = wi.image
         media_file = image.image_file.path
-        print(media_file)
         if not os.path.exists(media_file):
             raise ValueError(f"{media_file} does not exist")
         
-        sync(
-            url = "http://10.10.0.7:29085/api/v1/images",
-            params = {
-                "source_of_origin": "testing"
-            },
-            media_file=media_file,
-        )
+        url = "http://10.7.0.6:29085/api/v1/images"
+        params = {
+            "source_of_origin": "higgs"
+        }
         
-    except requests.exceptions.RequestException as e:
-        raise ValueError(f"An error occurred: {e}")
-    except Exception as e:
-        raise ValueError(f"An unexpected error occurred: {e}")
+        with open(media_file, "rb") as file:
+            files = {
+                "files": file
+            }
+            response = requests.post(url, params=params, files=files)
+
+        if response.status_code == 200:
+            print("File successfully uploaded:", response.json())
+        else:
+            raise ValueError(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
 
         data.update(
             {
@@ -57,10 +59,10 @@ def execute(self, instance, **kwargs):
                 'execution time': f"{round((time.time() - start_time) * 1000, 2)} ms",
             }
         )
-        
+
+    except requests.exceptions.RequestException as e:
+        raise ValueError(f"An error occurred: {e}")
     except Exception as e:
-        # Log the error and let Celery handle the retry
-        logger.error(f"Error executing alarm {instance}: {e}")
-        raise e
+        raise ValueError(f"An unexpected error occurred: {e}")
 
     return data
