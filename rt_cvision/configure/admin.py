@@ -2,6 +2,9 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline, StackedInline
 from .models import Service, ServiceParams
 
+class ServiceParamsInline(TabularInline):
+    model = ServiceParams
+
 @admin.register(Service)
 class ServiceAdmin(ModelAdmin):
     list_display = ('service_id', 'service_name', 'description', 'created_at')
@@ -16,6 +19,8 @@ class ServiceAdmin(ModelAdmin):
             'fields': ('created_at',),
         }),
     )
+    
+    inlines = [ServiceParamsInline]
 
 @admin.register(ServiceParams)
 class ServiceParamsAdmin(ModelAdmin):

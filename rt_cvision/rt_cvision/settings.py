@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'configure',
+    'users',
+    'tenants',
+    'metadata',
     'data_reader',
     'impurity',
 ]
@@ -59,6 +62,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'rt_cvision.urls'
+AUTH_USER_MODEL = "users.CustomUser"
 
 TEMPLATES = [
     {
@@ -158,6 +162,60 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                     },
                 ]
+            },
+            {
+                "title": _("Tenants"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Tenant"),
+                        "icon": 'tenancy',
+                        "link": reverse_lazy(
+                            "admin:tenants_tenant_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Entity"),
+                        "icon": 'fingerprint',
+                        "link": reverse_lazy(
+                            "admin:tenants_entitytype_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Tenant Entity"),
+                        "icon": 'type_specimen',
+                        "link": reverse_lazy(
+                            "admin:tenants_plantentity_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("SensorBoxes"),
+                        "icon": 'sensors',
+                        "link": reverse_lazy(
+                            "admin:tenants_sensorbox_changelist"
+                        ),
+                    },
+                ]
+            },
+            {
+                "title": _("Users & Groups"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Users"),
+                        "icon": "person",
+                        "link": reverse_lazy(
+                            "admin:users_customuser_changelist"
+                            ),
+                    },
+                    {
+                        "title": _("Groups"),
+                        "icon": "group",
+                        "link": reverse_lazy(
+                            "admin:auth_group_changelist"
+                            ),
+                    }
+                ],
             },
             {
                 "title": _("Configuration"),

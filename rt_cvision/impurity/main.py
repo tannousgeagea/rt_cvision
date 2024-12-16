@@ -22,7 +22,7 @@ from impurity.tasks.check_objects import (
     check_object_problematic,
 )
 
-from configure.client import config_manager
+from configure.client import config_manager, entity, sensorbox
 parameters = config_manager.params.get('impurity')
 
 tasks:dict = {
@@ -51,7 +51,6 @@ edge_2_cloud_url:str = parameters.get('edge_2_cloud_url')
 delivery_api_url:str = parameters.get('delivery_api_url')
 
 classes:list = [1, 2]
-
 
 class Processor:
     def __init__(self) -> None:
@@ -106,7 +105,13 @@ class Processor:
             )
             
             event_uid = str(uuid.uuid4())
-            filename = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{event_uid}.jpg"
+            filename = (
+                f"{entity.entity_type.tenant.tenant_name}_"
+                f"{entity.entity_uid}_"
+                f"{sensorbox.sensor_box_location}_"
+                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_"
+                f"{event_uid}.jpg"
+            )
             
             params = {
                 "cv_image": cv_image,

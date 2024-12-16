@@ -9,6 +9,13 @@ from data_reader.models import (
     Image
 )
 
+from tenants.models import (
+    Tenant,
+    EntityType,
+    PlantEntity,
+    SensorBox,
+)
+
 class ConfigManager:
     def __init__(self):            
         self.params = {}
@@ -21,3 +28,7 @@ class ConfigManager:
     
 
 config_manager = ConfigManager()
+entity = PlantEntity.objects.all()
+if entity:
+    entity = entity.first()
+    sensorbox = SensorBox.objects.get(plant_entity=entity)
