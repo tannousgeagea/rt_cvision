@@ -37,7 +37,7 @@ def execute(self, instance, **kwargs):
         
         url = "http://10.7.0.6:29085/api/v1/images"
         params = {
-            "source_of_origin": "higgs"
+            "source_of_origin": wi.image.sensorbox.sensor_box_name,
         }
         
         with open(media_file, "rb") as file:

@@ -17,6 +17,10 @@ from impurity.models import (
     Impurity,
 )
 
+from configure.client import (
+    sensorbox
+)
+
 
 def save_snapshot(params):
     try:
@@ -45,6 +49,7 @@ def save_experiment(params):
             image_name=params.get('filename'),
             image_format='JPEG',
             timestamp=datetime.now(tz=timezone.utc),
+            sensorbox=sensorbox,
         )
         
         _, buffer = cv2.imencode('.jpg', params.get('cv_image'))

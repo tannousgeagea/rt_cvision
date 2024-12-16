@@ -1,4 +1,7 @@
 from django.db import models
+from tenants.models import (
+    SensorBox
+)
 
 def get_image_path(instance, filename):
     return f"images/{filename}"
@@ -15,6 +18,7 @@ class Image(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)  # Expiration time for cleanup
     source = models.CharField(max_length=255, null=True, blank=True)  # Optional source of the image
     meta_info = models.JSONField(null=True, blank=True)
+    sensorbox = models.ForeignKey(SensorBox, on_delete=models.SET_NULL, null=True)  # New relationship
 
     class Meta:
         db_table = 'image'
