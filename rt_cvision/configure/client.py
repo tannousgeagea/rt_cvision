@@ -29,6 +29,7 @@ class ConfigManager:
 
 config_manager = ConfigManager()
 entity = PlantEntity.objects.all()
+sensorbox = None
 if entity:
     entity = entity.first()
     sensorbox = SensorBox.objects.get(plant_entity=entity)

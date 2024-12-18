@@ -18,7 +18,7 @@ sleep 5
                                 impurity:impurity_comuting_server \
                                 visualizer:visualizer_comuting_server'
 
-echo "Sleeping for 10 seconds..."
+echo "Sleeping for 20 seconds..."
 sleep 10
 
 /bin/bash -c 'supervisorctl start segmentation:segments_data_reader \
