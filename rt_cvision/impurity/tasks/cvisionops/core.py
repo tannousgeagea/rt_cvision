@@ -7,6 +7,41 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 from common_utils.sync.core import sync
 
+def post_annotations(api_url, project_name, image_id, annotation_type, annotations):
+    """
+    Posts annotations to the specified API endpoint.
+
+    Args:
+        api_url (str): Base URL of the API.
+        project_name (str): Name of the project.
+        image_id (str): ID of the image.
+        annotation_type (str): Type of annotation (e.g., 'bounding_boxes').
+        annotations (list): List of annotations to be sent in the request body.
+
+    Returns:
+        Response: Response object from the API.
+    """
+    url = f"{api_url}/api/v1/annotations"
+    params = {
+        "project_name": project_name,
+        "image_id": image_id,
+        "annotation_type": annotation_type,
+    }
+    headers = {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    
+    print(annotations)
+    try:
+        response = requests.post(url, headers=headers, params=params, json=annotations)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error posting annotations: {e}")
+        return None
+
+
 @shared_task(
     bind=True,
     autoretry_for=(Exception,),
@@ -38,6 +73,7 @@ def execute(self, instance, **kwargs):
         url = "http://10.7.0.6:29085/api/v1/images"
         params = {
             "source_of_origin": wi.image.sensorbox.sensor_box_name,
+            "image_id": wi.image.image_id,
         }
         
         with open(media_file, "rb") as file:
@@ -50,6 +86,15 @@ def execute(self, instance, **kwargs):
             print("File successfully uploaded:", response.json())
         else:
             raise ValueError(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
+
+
+        post_annotations(
+            api_url="http://10.7.0.6:29085",
+            project_name = "amk_front_impurity",
+            image_id=wi.image.image_id,
+            annotation_type='bounding_boxes',
+            annotations=[[wi.class_id] + wi.object_coordinates],
+        )
 
         data.update(
             {
