@@ -37,7 +37,7 @@ ALLOWED_HOSTS = [os.getenv("ALLOWED_HOST", "0.0.0.0"), os.getenv("Systenname", '
 
 INSTALLED_APPS = [
     'unfold',
-    # 'django.contrib.admin',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
