@@ -40,6 +40,9 @@ class TimedRoute(APIRoute):
 def get_status(items):
     return "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
 
+def is_active(items):
+    return True if all(item["statename"] == "RUNNING" for item in items) else False
+
 router = APIRouter(
     prefix="/api/v1",
     tags=["Service"],
@@ -59,7 +62,7 @@ def get_service(response: Response):
             status = "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
             grouped_data[item['group']].append(item)
         
-        results = {"data": [{"id": group, "service_name": group, "status": get_status(config), "is_active": True, "items": config} for group, config in grouped_data.items()]}
+        results = {"data": [{"id": group, "name": group, "status": get_status(config), "is_active": is_active(config), "items": config} for group, config in grouped_data.items()]}
      
     except HTTPException as e:
         results['error'] = {
@@ -142,6 +145,8 @@ def get_service_data_by_group_name(response: Response, group_name:str):
                     'group': item['group'],
                     'start': item['start'],
                     'stop': item['stop'],
+                    'is_active': item['statename'] == "RUNNING",
+                    'status': 'healthy' if item['statename'] == "RUNNING" else 'unhealthy',
                     'statename': item['statename'],
                     'description': item['description'],
                 }
