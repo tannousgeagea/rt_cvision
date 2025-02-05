@@ -36,6 +36,7 @@ class Detections:
     tracker_id: Optional[np.ndarray] = None
     object_length: Optional[np.ndarray] = None
     object_area: Optional[np.ndarray] = None
+    uid: Optional[np.ndarray] = None
     data: Dict[str, Union[np.ndarray, List]] = field(default_factory=dict)
     
     
@@ -58,6 +59,7 @@ class Detections:
             Optional[int],
             Optional[float],
             Optional[float],
+            Optional[str],
             Dict[str, Union[np.ndarray, List]],
         ]
     ]:
@@ -76,6 +78,7 @@ class Detections:
                 self.tracker_id[i] if self.tracker_id is not None else None,
                 self.object_length[i] if self.object_length is not None else None,
                 self.object_area[i] if self.object_area is not None else None,
+                self.uid[i] if self.uid is not None else None,
                 get_data_item(self.data, i)
             )
 
@@ -135,6 +138,7 @@ class Detections:
             tracker_id=self.tracker_id[index] if self.tracker_id is not None else None,
             object_length=self.object_length[index] if self.object_length is not None else None,
             object_area=self.object_area[index] if self.object_area is not None else None,
+            uid=self.uid[index] if self.uid is not None else None,
             data=get_data_item(self.data, index),
         )
         
@@ -212,6 +216,7 @@ class Detections:
             'tracker_id': self.tracker_id.tolist() if self.tracker_id is not None else self.tracker_id,
             'object_length': self.object_length.tolist() if self.object_length is not None else self.object_length,
             'object_area': self.object_area.tolist() if self.object_area is not None else self.object_area,
+            'object_uid': self.uid.tolist() if self.uid is not None else self.uid,
         }
         
     @classmethod
@@ -227,6 +232,7 @@ class Detections:
             tracker_id=np.array(results.get('tracker_id', None)) if 'tracker_id' in results.keys() else None,
             object_length=np.array(results.get('object_length', None)) if 'object_length' in results.keys() else None,
             object_area=np.array(results.get('object_area', None)) if 'object_area' in results.keys() else None,
+            uid=np.array(results.get('object_uid', None)) if 'object_uid' in results.keys() else None,
         )
     
     def to_txt(self, txt_file:str, task:str='detect',):
@@ -263,6 +269,7 @@ class Detections:
             tracker_id=self.tracker_id,
             object_length=self.object_length,
             object_area=self.object_area,
+            uid=self.uid,
         )
     
     

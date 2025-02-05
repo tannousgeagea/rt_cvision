@@ -1,13 +1,14 @@
 import os
 import cv2
+import sys
 import time
 import logging
 import numpy as np
 from .mlflow_model.core import pull
 from ultralytics import YOLO
 from pathlib import Path
-
-import sys
+from common_utils.detection.core import Detections
+from typing import Union, List
 
 base_dir = Path(__file__).parent
 sys.path.append(str(base_dir / 'mlflow_model'))
@@ -46,7 +47,15 @@ class BaseModels:
         logging.info(f'Model weights: {self.weights} successfully loaded! ✅')
         return YOLO(self.weights)
 
-    def classify_one(self, image, conf=0.25, mode='detect', classes=None):
+    def classify_one(
+        self, 
+        image:np.ndarray, 
+        conf:float=0.25, 
+        mode:str='detect', 
+        classes:Union[List, int]=None, 
+        is_json:bool=True
+        ):
+        
         final_results = {}
         if self.model:
             # results = self.model.track(image, persist=True, conf=conf, classes=classes) if mode=='track' else self.model.predict(image, conf=conf, classes=classes)
@@ -67,11 +76,11 @@ class BaseModels:
             if not results[0].masks is None:
                 final_results = self.write_result(final_results, 'xy', results[0].masks.xy)
                 final_results = self.write_result(final_results, 'xyn', results[0].masks.xyn)
-            else:
-                final_results = self.write_result(final_results, 'xy', [])
-                final_results = self.write_result(final_results, 'xyn', [])
+            # else:
+            #     final_results = self.write_result(final_results, 'xy', [])
+            #     final_results = self.write_result(final_results, 'xyn', [])
                 
-        return final_results
+        return final_results if is_json else Detections.from_dict(final_results)
     
     def write_result(self, result, key, value):
         if key not in result.keys():

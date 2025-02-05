@@ -7,6 +7,8 @@ import threading
 import numpy as np
 from typing import Optional, Dict
 from datetime import datetime, timezone
+from common_utils.model.base import BaseModels
+from impurity.utils.objects.core import ObjectManager
 from impurity.tasks.annotate.base import draw
 from impurity.tasks.email.notifify import send_email
 from common_utils.detection.utils import box_iou_batch
@@ -24,6 +26,11 @@ from impurity.tasks.check_objects import (
 
 from configure.client import config_manager, entity, sensorbox
 parameters = config_manager.params.get('impurity')
+
+model = BaseModels(
+    weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
+)
+
 
 tasks:dict = {
     'draw': draw,
@@ -56,8 +63,9 @@ class Processor:
     def __init__(self) -> None:
         self.map_tracker_id_2_object_uid = {}
     
-    def execute(self, detections:Detections, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
+    def execute(self, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
         try:
+            detections = model.classify_one(cv_image, conf=parameters.get('conf', 0.25), is_json=False)
             if classes:
                 detections = detections[np.isin(detections.class_id, classes)]
             
@@ -65,87 +73,103 @@ class Processor:
                 print('No Detection ! 🕵️‍♂️🔍❌ ')
                 return 
             
-            objects_seg = check_object_size.check(
-                objects=data,
-                threshold=[0., 0.5, 1.],
-            )    
-        
-            if not objects_seg.get('xyxyn'):
+            segments = Detections.from_dict(data)
+            segments = segments[segments.object_length >= mapping_threshold[1]]
+            if not len(segments):
                 return
             
-            print(f'Detecting {len(detections)} potential impurity vs {len(objects_seg.get("xyxyn"))} Segments ! Analyis started 🔍 ... ...')
-            problematic_objects = check_object_problematic.is_object_problematic(
-                detections=detections, segments=objects_seg, iou_threshold=iou_threshold, mapping_key=mapping_key, mapping_threshold=mapping_threshold,
+            object_manager = ObjectManager(
+                segments=segments, detections=detections
             )
             
-            problematic_objects = self.register_objects(problematic_objects)
-            if not problematic_objects.get('xyxyn'):
-                return
+            object_manager.is_problematic()
+            object_manager.severtiy_level(mapping_key=mapping_key, mapping_threshold=mapping_threshold)
+            object_manager.save()
             
-            labels = [
-                f'{int(mapping_threshold[i] * 100)} - {int(mapping_threshold[i+1] * 100)} cm'
-                for i in range(len(mapping_threshold) - 1)
-            ] + [f'> {int(mapping_threshold[-1] * 100)} cm']
 
-            alarm_image = draw(
-                params={
-                    "cv_image": cv_image.copy(),
-                    "line_width": line_width,
-                    "colors": mapping_colors,
-                    "objects": problematic_objects,
-                    "legend": labels,
-                }
-            )
+
             
-            delivery_id = get(
-                url=delivery_api_url,
-                params={
-                    "timestamp": datetime.now(tz=timezone.utc)
-                }
-            )
+        #     objects_seg = check_object_size.check(
+        #         objects=data,
+        #         threshold=[0., 0.5, 1.],
+        #     )    
+        
+        #     if not objects_seg.get('xyxyn'):
+        #         return
             
-            event_uid = str(uuid.uuid4())
-            filename = (
-                f"{entity.entity_type.tenant.tenant_name}_"
-                f"{entity.entity_uid}_"
-                f"{sensorbox.sensor_box_location}_"
-                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_"
-                f"{event_uid}.jpg"
-            )
+        #     print(f'Detecting {len(detections)} potential impurity vs {len(objects_seg.get("xyxyn"))} Segments ! Analyis started 🔍 ... ...')
+        #     problematic_objects = check_object_problematic.is_object_problematic(
+        #         detections=detections, segments=objects_seg, iou_threshold=iou_threshold, mapping_key=mapping_key, mapping_threshold=mapping_threshold,
+        #     )
             
-            params = {
-                "cv_image": cv_image,
-                "snapshot": alarm_image,
-                "snapshot_dir": snapshot_dir,
-                "filename": filename,
-                "experiment_dir": experiment_dir,
-                "timestamp": data.get('datetime'),
-                "severity_level": problematic_objects.get('severity_level'),
-                "event_uid": event_uid,
-                "event_description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
-                "snapshot_url": f"/alarms/snapshots/stoerstoff/{filename}",
-                "snapshot_id": str(uuid.uuid4()),
-                "model_name": parameters.get('weights'),
-                "model_tag": 'v003',
-                "db_url": db_url,
-                "video_url": video_url,
-                "gate_id": os.getenv('GATE_ID', 'gate03'),
-                "topic": topic,
-                "objects": problematic_objects,
-                "delivery_id": delivery_id,
-                "edge_2_cloud_url": edge_2_cloud_url,
-                "media_file": f"{snapshot_dir}/{filename}",
-                "meta_info": {
-                    "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
-                }
-            }
+        #     problematic_objects = self.register_objects(problematic_objects)
+        #     if not problematic_objects.get('xyxyn'):
+        #         return
             
-            for key, value in parameters.get('tasks', {}).items():
-                func = tasks.get(key)
-                if value:
-                    print(f"Executing {key} ... ", end='')
-                    func(params)
-                    print("Done")
+        #     labels = [
+        #         f'{int(mapping_threshold[i] * 100)} - {int(mapping_threshold[i+1] * 100)} cm'
+        #         for i in range(len(mapping_threshold) - 1)
+        #     ] + [f'> {int(mapping_threshold[-1] * 100)} cm']
+
+        #     alarm_image = draw(
+        #         params={
+        #             "cv_image": cv_image.copy(),
+        #             "line_width": line_width,
+        #             "colors": mapping_colors,
+        #             "objects": problematic_objects,
+        #             "legend": labels,
+        #         }
+        #     )
+            
+        #     delivery_id = get(
+        #         url=delivery_api_url,
+        #         params={
+        #             "timestamp": datetime.now(tz=timezone.utc)
+        #         }
+        #     )
+            
+        #     event_uid = str(uuid.uuid4())
+        #     filename = (
+        #         f"{entity.entity_type.tenant.tenant_name}_"
+        #         f"{entity.entity_uid}_"
+        #         f"{sensorbox.sensor_box_location}_"
+        #         f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_"
+        #         f"{event_uid}.jpg"
+        #     )
+            
+        #     params = {
+        #         "cv_image": cv_image,
+        #         "snapshot": alarm_image,
+        #         "snapshot_dir": snapshot_dir,
+        #         "filename": filename,
+        #         "experiment_dir": experiment_dir,
+        #         "timestamp": data.get('datetime'),
+        #         "severity_level": problematic_objects.get('severity_level'),
+        #         "event_uid": event_uid,
+        #         "event_description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
+        #         "snapshot_url": f"/alarms/snapshots/stoerstoff/{filename}",
+        #         "snapshot_id": str(uuid.uuid4()),
+        #         "model_name": parameters.get('weights'),
+        #         "model_tag": 'v003',
+        #         "db_url": db_url,
+        #         "video_url": video_url,
+        #         "gate_id": os.getenv('GATE_ID', 'gate03'),
+        #         "topic": topic,
+        #         "objects": problematic_objects,
+        #         "delivery_id": delivery_id,
+        #         "edge_2_cloud_url": edge_2_cloud_url,
+        #         "media_file": f"{snapshot_dir}/{filename}",
+        #         "meta_info": {
+        #             "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
+        #         }
+        #     }
+            
+        #     for key, value in parameters.get('tasks', {}).items():
+        #         func = tasks.get(key)
+        #         if value:
+        #             print(f"Executing {key} ... ", end='')
+        #             func(params)
+        #             print("Done")
             
         except Exception as err:
             logging.error(f"Error while executing detections in impurity: {err}")

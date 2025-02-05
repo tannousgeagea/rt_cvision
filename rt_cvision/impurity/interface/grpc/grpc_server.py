@@ -26,7 +26,6 @@ redis_manager = RedisManager(
     password=os.environ['REDIS_PASSWORD'],
 )
 
-
 class ServiceImpl(impurity_service_pb2_grpc.ComputingUnitServicer):
     def ProcessData(self, request, context):
         data = json.loads(request.data)
@@ -40,8 +39,8 @@ class ServiceImpl(impurity_service_pb2_grpc.ComputingUnitServicer):
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        detections = predictor.predict(image=retrieved_image)
-        processor.execute(detections=detections, cv_image=retrieved_image, data=data, classes=None)
+        # detections = predictor.predict(image=retrieved_image)
+        processor.execute(cv_image=retrieved_image, data=data, classes=None)
         
         result = json.dumps(
             {

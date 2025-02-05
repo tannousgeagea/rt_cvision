@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 from common_utils.services.redis_manager import RedisManager
 from segments.interface.grpc import waste_segments_service_pb2
 from segments.interface.grpc import waste_segments_service_pb2_grpc
+from segments.tasks.publish.core import publish_to_kafka
 from segments.tasks.segment import predictor
 from segments.main import Processor
 
