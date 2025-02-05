@@ -46,8 +46,7 @@ class ServiceImpl(impurity_service_pb2_grpc.ComputingUnitServicer):
             {
                 'action': 'done',
                 'task_id': img_key,
-                'datetime': data.get('datetime', None),
-                'detections': detections.to_dict(),
+                'datetime': data.get('datetime', None)
             }
         )
         

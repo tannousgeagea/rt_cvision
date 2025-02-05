@@ -65,6 +65,14 @@ class Processor:
     
     def execute(self, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
         try:
+            segments = Detections.from_dict(data)
+            indices = np.where(segments.object_length >= mapping_threshold[1])[0]
+            segments = segments[indices]
+            
+            if not len(segments):
+                print('No Qualified Objects')
+                return
+            
             detections = model.classify_one(cv_image, conf=parameters.get('conf', 0.25), is_json=False)
             if classes:
                 detections = detections[np.isin(detections.class_id, classes)]
@@ -73,20 +81,17 @@ class Processor:
                 print('No Detection ! 🕵️‍♂️🔍❌ ')
                 return 
             
-            segments = Detections.from_dict(data)
-            segments = segments[segments.object_length >= mapping_threshold[1]]
-            if not len(segments):
-                return
-            
             object_manager = ObjectManager(
                 segments=segments, detections=detections
             )
             
-            object_manager.is_problematic()
-            object_manager.severtiy_level(mapping_key=mapping_key, mapping_threshold=mapping_threshold)
-            object_manager.save()
-            
+            detections = object_manager.is_problematic()
+            if detections is None:
+                return
 
+            object_manager.severtiy_level(mapping_key=mapping_key, mapping_threshold=mapping_threshold)
+            object_manager.save(cv_image=cv_image)
+            return detections
 
             
         #     objects_seg = check_object_size.check(
