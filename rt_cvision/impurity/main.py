@@ -9,54 +9,20 @@ from typing import Optional, Dict
 from datetime import datetime, timezone
 from common_utils.model.base import BaseModels
 from impurity.utils.objects.core import ObjectManager
-from impurity.tasks.annotate.base import draw
-from impurity.tasks.email.notifify import send_email
-from common_utils.detection.utils import box_iou_batch
-from impurity.tasks.video.generate import generate_video
 from common_utils.detection.core import Detections
-from impurity.tasks.delivery.core  import get
-from impurity.tasks.database.register import save_results_into_db
-from impurity.tasks.edge_to_cloud.core import sync_media_to_cloud
-from impurity.tasks.snapshot.save import save_snapshot, save_experiment
-from impurity.tasks.check_objects import (
-    check_object_severity_level,
-    check_object_size,
-    check_object_problematic,
-)
 
-from configure.client import config_manager, entity, sensorbox
-parameters = config_manager.params.get('impurity')
+from configure.client import ConfigManager
+config_manager = ConfigManager()
 
 model = BaseModels(
-    weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
+    weights=config_manager.impurity.weights, 
+    task='impurity', 
+    mlflow=config_manager.impurity.mlflow.get('active', False)
 )
-
-
-tasks:dict = {
-    'draw': draw,
-    'save_snapshot': save_snapshot,
-    'save_experiment': save_experiment,
-    'generate_video': generate_video,
-    'send_email': send_email,
-    'save_results_into_db': save_results_into_db,
-    "sync_media_to_cloud": sync_media_to_cloud,
-}
 
 mapping_threshold:list = [0., 0.3, 0.5, 1.]
 mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)]
 mapping_key:str = 'object_length'
-iou_threshold:float = parameters.get('iou_threshold')
-line_width:int = 3
-
-snapshot_dir:str = parameters.get('snapshot_dir')
-experiment_dir:str =  parameters.get('experiment_dir')
-db_url:str = parameters.get('db_url')
-email_url:str = parameters.get('email_url')
-video_url:str = parameters.get("video_url")
-topic:str = parameters.get('topic', "/front/rgb_left")
-edge_2_cloud_url:str = parameters.get('edge_2_cloud_url')
-delivery_api_url:str = parameters.get('delivery_api_url')
-
 classes:list = [1, 2]
 
 class Processor:
@@ -65,6 +31,7 @@ class Processor:
     
     def execute(self, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
         try:
+            data = self.register_objects(data)
             segments = Detections.from_dict(data)
             indices = np.where(segments.object_length >= mapping_threshold[1])[0]
             segments = segments[indices]
@@ -73,7 +40,7 @@ class Processor:
                 print('No Qualified Objects')
                 return
             
-            detections = model.classify_one(cv_image, conf=parameters.get('conf', 0.25), is_json=False)
+            detections = model.classify_one(cv_image, conf=config_manager.impurity.conf, is_json=False)
             if classes:
                 detections = detections[np.isin(detections.class_id, classes)]
             
@@ -81,6 +48,7 @@ class Processor:
                 print('No Detection ! 🕵️‍♂️🔍❌ ')
                 return 
             
+            detections = detections.with_nms()
             object_manager = ObjectManager(
                 segments=segments, detections=detections
             )

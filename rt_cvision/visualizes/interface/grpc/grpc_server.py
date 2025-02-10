@@ -19,8 +19,6 @@ from visualizes.tasks.publish import (
     publish_image_to_ros2,
 )
 from visualizes.tasks.annotate.base import draw
-from configure.client import config_manager
-parameters = config_manager.params.get('visualizer')
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],

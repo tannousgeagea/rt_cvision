@@ -14,7 +14,6 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 from common_utils.services.redis_manager import RedisManager
 from impurity.interface.grpc import impurity_service_pb2
 from impurity.interface.grpc import impurity_service_pb2_grpc
-from impurity.tasks.detect import predictor
 from impurity.main import Processor
 
 

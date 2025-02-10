@@ -73,6 +73,7 @@ services:
         CUDA_VERSION: ${CUDA_VERSION}
     networks: 
       - internal
+      - db_witer_internal
     ports:
       - ${INET_HTTP_SERVER_PORT}:${INET_HTTP_SERVER_PORT}
       - ${DJANGO_ADMIN_PORT}:${DJANGO_ADMIN_PORT}
@@ -113,3 +114,5 @@ volumes:
 networks:
   internal:
     driver: bridge
+  db_witer_internal:
+    external: true

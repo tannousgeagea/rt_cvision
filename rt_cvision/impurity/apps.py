@@ -1,7 +1,11 @@
+import os
+import sys
+from pathlib import Path
+import logging
 from django.apps import AppConfig
 from impurity.config import celery_utils
 from impurity.tasks.cvisionops.core import execute
-
+from impurity.tasks.register_alarm.core import register_alarm
 
 class ImpurityAppConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'

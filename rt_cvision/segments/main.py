@@ -8,13 +8,11 @@ from common_utils.detection.core import Detections
 from segments.tasks.object_size.estimate_object_size import ObjectSizeEst
 from segments.tasks.publish.core import publish_to_kafka
 from common_utils.timezone_utils.timeloc import get_location_and_timezone, convert_to_local_time
-from configure.client import config_manager
-
+from configure.client import ConfigManager
 
 timezone_str = get_location_and_timezone()
 logging.info(f"Local Timezone: {timezone_str}")
-
-parameters = config_manager.params.get('segmentation')
+config_manager = ConfigManager()
 
 tasks = {
     'publish_to_kafka': publish_to_kafka,
@@ -32,7 +30,7 @@ class Processor:
             objects = self.object_size_est.execute(
                 objects=objects, 
                 input_shape=cv_image.shape,
-                correction_factor=parameters.get('correction_factor'),
+                correction_factor=config_manager.segmentation.correction_factor,
                 )
 
             instances, all_instances = self.register_objects(objects=objects)
@@ -45,7 +43,7 @@ class Processor:
             
             params = {
                 'message': kafka_msg,
-                'db_url': parameters.get('db_url'),
+                'db_url': config_manager.segmentation.db_url,
                 'objects': instances,
                 'model_name': 'wasteant-segmentation',
                 'model_tag': 'v003',
@@ -55,7 +53,7 @@ class Processor:
                 }
             }
             
-            for key, value in parameters.get('tasks').items():
+            for key, value in config_manager.segmentation.tasks.items():
                 func = tasks.get(key)
                 if value:
                     print(f'Executing {key} ... ', end='')

@@ -1,17 +1,17 @@
 import logging
 from common_utils.model.base import BaseModels
 from common_utils.detection.core import Detections
-from configure.client import config_manager
+from configure.client import ConfigManager
 from common_utils.filters.core import FilterEngine
 
-parameters = config_manager.params.get('segmentation')
+config_manager = ConfigManager()
 
 model = BaseModels(
-    weights=parameters.get('weights'), task='segments', mlflow=parameters.get('mlflow', {}).get('active', False),
+    weights=config_manager.segmentation.weights, task='segments', mlflow=config_manager.segmentation.mlflow.get('active', False),
 )
 
-roi = parameters.get('roi')
-filter_config = parameters.get('filter_config')
+roi = getattr(config_manager.segmentation, "roi", None)
+filter_config = getattr(config_manager.segmentation, "filter_config", None)
 filter_engine = FilterEngine()
 if filter_config:
     for obj_type, filter_model in filter_config.items():
@@ -37,7 +37,7 @@ def predict(image):
         else:
             c_image = image.copy()
         
-        results = model.classify_one(image=c_image, conf=float(parameters.get('conf')), mode=parameters.get('mode'))
+        results = model.classify_one(image=c_image, conf=float(config_manager.segmentation.conf), mode=config_manager.segmentation.mode)
         detections = Detections.from_dict(results=results)
         if roi:
             detections = detections.adjust_to_roi(

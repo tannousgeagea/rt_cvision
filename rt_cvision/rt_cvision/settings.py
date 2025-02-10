@@ -235,6 +235,27 @@ UNFOLD = {
                             "admin:configure_serviceparams_changelist"
                         ),
                     },
+                    {
+                        "title": _("App config"),
+                        "icon": 'settings',
+                        "link": reverse_lazy(
+                            "admin:configure_appconfig_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Data Sources"),
+                        "icon": 'frame_source',
+                        "link": reverse_lazy(
+                            "admin:configure_datasource_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Data Aquicistion Config"),
+                        "icon": 'topic',
+                        "link": reverse_lazy(
+                            "admin:configure_dataacquisitionconfig_changelist"
+                        ),
+                    },
                 ]
             },
             {
@@ -254,6 +275,13 @@ UNFOLD = {
                 "title": _("Impurities"),
                 "collapsible": True,
                 "items": [
+                                        {
+                        "title": _("Impurity Tasks"),
+                        "icon": 'add_task',
+                        "link": reverse_lazy(
+                            "admin:impurity_impuritytask_changelist"
+                        ),
+                    },
                     {
                         "title": _("Impurity"),
                         "icon": 'comedy_mask',

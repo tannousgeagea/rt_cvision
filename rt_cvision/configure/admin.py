@@ -1,6 +1,12 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline, StackedInline
-from .models import Service, ServiceParams
+from .models import (
+    Service, 
+    ServiceParams, 
+    AppConfig,
+    DataSource,
+    DataAcquisitionConfig,
+)
 
 class ServiceParamsInline(TabularInline):
     model = ServiceParams
@@ -49,3 +55,17 @@ class ServiceParamsAdmin(ModelAdmin):
             raise ValueError('Value must be a boolean')
 
         super().save_model(request, obj, form, change)
+
+
+@admin.register(AppConfig)
+class AppConfigAdmin(ModelAdmin):
+    list_display = ("is_configured", "created_at")
+    
+    
+@admin.register(DataSource)
+class DataSourceAdmin(ModelAdmin):
+    list_display = ("name", "interface", "is_available", "last_detected")
+    
+@admin.register(DataAcquisitionConfig)
+class DataAcquisitionConfigAdmin(ModelAdmin):
+    list_display = ("selected_source", )
