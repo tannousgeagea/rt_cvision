@@ -51,7 +51,7 @@ router = APIRouter(
 )
 
 @router.api_route(
-    "/processor", methods=["GET"], tags=["Service"]
+    "/services", methods=["GET"], tags=["Service"]
 )
 def get_service(response: Response):
     results = {}
@@ -86,7 +86,7 @@ def get_service(response: Response):
 
 
 @router.api_route(
-    "/processor/{service_name}", methods=["GET"], tags=["Service"]
+    "/processor", methods=["GET"], tags=["Service"]
 )
 def get_service_data_by_service_name(response: Response, service_name:str):
     results = {}
@@ -129,7 +129,7 @@ def get_service_data_by_service_name(response: Response, service_name:str):
     return results
 
 @router.api_route(
-    "/processor/group/{group_name}", methods=["GET"], tags=["Service"]
+    "/group", methods=["GET"], tags=["Service"]
 )
 def get_service_data_by_group_name(response: Response, group_name:str):
     results = {}
@@ -182,7 +182,7 @@ def get_service_data_by_group_name(response: Response, group_name:str):
     return results
 
 @router.api_route(
-    "/processor/group/{group_name}/start", methods=["POST"], tags=["Service"]
+    "/group/start", methods=["POST"], tags=["Service"]
 )
 def start_group(response: Response, group_name:str):
     results = {}
@@ -215,7 +215,7 @@ def start_group(response: Response, group_name:str):
     return results
 
 @router.api_route(
-    "/processor/group/{group_name}/stop", methods=["POST"], tags=["Service"]
+    "/group/stop", methods=["POST"], tags=["Service"]
 )
 def stop_group(response: Response, group_name:str):
     results = {}
@@ -248,7 +248,7 @@ def stop_group(response: Response, group_name:str):
     return results
 
 @router.api_route(
-    "/processor/{service_name}/start", methods=["POST"], tags=["Service"]
+    "/processor/start", methods=["POST"], tags=["Service"]
 )
 def start_process(response: Response, service_name:str):
     results = {}
@@ -282,7 +282,7 @@ def start_process(response: Response, service_name:str):
     return results
 
 @router.api_route(
-    "/processor/{service_name}/stop", methods=["POST"], tags=["Service"]
+    "/processor/stop", methods=["POST"], tags=["Service"]
 )
 def stop_process(response: Response, service_name:str):
     results = {}
@@ -315,7 +315,7 @@ def stop_process(response: Response, service_name:str):
     return results
 
 @router.api_route(
-    "/processor/start", methods=["POST"], tags=["Service"]
+    "/start", methods=["POST"], tags=["Service"]
 )
 def start_all(response: Response):
     results = {}
@@ -349,7 +349,7 @@ def start_all(response: Response):
 
 
 @router.api_route(
-    "/processor/stop", methods=["POST"], tags=["Service"]
+    "/stop", methods=["POST"], tags=["Service"]
 )
 def stop_all(response: Response):
     results = {}
