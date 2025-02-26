@@ -22,7 +22,7 @@ def send_email(params):
         assert 'snapshot_url' in params, f'Missing argument in post_email: url_img_name'
         assert 'email_url' in params, f'Missing argument in post_email: email_url'
         
-        if not params['severity_level'] > 1:
+        if not int(params['severity_level']) > 1:
             return success
         
         if isinstance(timestamp, datetime):
