@@ -8,9 +8,44 @@ from .models import (
     DataAcquisitionConfig,
 )
 
+from .models import (
+    ServiceConfigGroup,
+    ServiceConfigFieldInstance,
+    ConfigFieldDefinition,
+    ValueType,
+    InputType,
+)
+
 class ServiceParamsInline(TabularInline):
     model = ServiceParams
 
+class ServiceConfigFieldInstanceInline(TabularInline):
+    model = ServiceConfigFieldInstance
+    extra = 1
+    fields = ('definition', 'value', 'order', 'meta_info')
+    ordering = ('order',)
+    
+class ServiceConfigGroupInline(TabularInline):
+    model = ServiceConfigGroup
+    extra = 1
+    fields = ('name', 'order', 'meta_info')
+    ordering = ('order',)
+
+@admin.register(ValueType)
+class ValueTypeAdmin(ModelAdmin):
+    list_display = ("name", "description", "created_at", "updated_at")
+
+@admin.register(InputType)
+class InputTypeAdmin(ModelAdmin):
+    list_display = ("name", "description", "created_at", "updated_at")
+
+@admin.register(ServiceConfigGroup)
+class ServiceConfigGroupAdmin(admin.ModelAdmin):
+    inlines = [ServiceConfigFieldInstanceInline]
+    list_display = ('name', 'service', 'order')
+    list_filter = ('service',)
+    ordering = ('order',)
+    
 @admin.register(Service)
 class ServiceAdmin(ModelAdmin):
     list_display = ('service_id', 'service_name', 'description', 'created_at')
@@ -26,7 +61,7 @@ class ServiceAdmin(ModelAdmin):
         }),
     )
     
-    inlines = [ServiceParamsInline]
+    inlines = [ServiceConfigGroupInline, ServiceParamsInline]
 
 @admin.register(ServiceParams)
 class ServiceParamsAdmin(ModelAdmin):
@@ -55,7 +90,6 @@ class ServiceParamsAdmin(ModelAdmin):
             raise ValueError('Value must be a boolean')
 
         super().save_model(request, obj, form, change)
-
 
 @admin.register(AppConfig)
 class AppConfigAdmin(ModelAdmin):

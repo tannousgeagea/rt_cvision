@@ -21,6 +21,74 @@ from configure.models import Service, ServiceParams
 from xmlrpc.client import ServerProxy
 server = ServerProxy(f'http://{os.environ["user"]}:{os.environ["password"]}@localhost:{os.environ["INET_HTTP_SERVER_PORT"]}/RPC2')
 
+configuration = {
+   "groups":[
+      {
+         "name":"General Settings",
+         "fields":[
+            {
+               "id":"auth-mode",
+               "label":"Authentication Mode",
+               "type":"text",
+               "value":"JWT",
+               "validation":{
+                  "required":True
+               },
+               "description":"Authentication mechanism (JWT, OAuth, Basic)"
+            },
+            {
+               "id":"token-expiry",
+               "label":"Token Expiry (hours)",
+               "type":"number",
+               "value":24,
+               "validation":{
+                  "required":True,
+                  "min":1,
+                  "max":168
+               },
+               "description":"JWT token expiry time in hours"
+            },
+            {
+               "id":"debug-mode",
+               "label":"Debug Mode",
+               "type":"checkbox",
+               "value":False,
+               "description":"Enable detailed logging for debugging"
+            }
+         ]
+      },
+      {
+         "name":"Performance Settings",
+         "fields":[
+            {
+               "id":"max-concurrent",
+               "label":"Max Concurrent Sessions",
+               "type":"number",
+               "value":1000,
+               "validation":{
+                  "required":True,
+                  "min":100,
+                  "max":10000
+               },
+               "description":"Maximum number of concurrent user sessions"
+            },
+            {
+               "id":"cache-ttl",
+               "label":"Cache TTL",
+               "type":"float",
+               "value":15.5,
+               "validation":{
+                  "required":True,
+                  "min":1,
+                  "max":60
+               },
+               "description":"Cache time-to-live in minutes"
+            }
+         ]
+      }
+   ]
+}
+
 class TimedRoute(APIRoute):
     def get_route_handler(self) -> Callable:
         original_route_handler = super().get_route_handler()
@@ -38,10 +106,18 @@ class TimedRoute(APIRoute):
 
 
 def get_status(items):
-    return "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
+    return "active" if all(item["statename"] == "RUNNING" for item in items) else "inactive"
 
 def is_active(items):
     return True if all(item["statename"] == "RUNNING" for item in items) else False
+
+def get_uptime(items):
+    if not items:
+        return ""
+    if not "description" in items[0]:
+        return ""
+    
+    return items[0]["description"]
 
 router = APIRouter(
     prefix="/api/v1",
@@ -62,7 +138,22 @@ def get_service(response: Response):
             status = "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
             grouped_data[item['group']].append(item)
         
-        results = {"data": [{"id": group, "name": group, "status": get_status(config), "is_active": is_active(config), "items": config} for group, config in grouped_data.items()]}
+        results = {
+            "data": [
+                {
+                    "id": group, 
+                    "name": group, 
+                    "status": get_status(config), 
+                    "is_active": is_active(config), 
+                    "version": "1.2.0",
+                    "uptime": get_uptime(config),
+                    "cpu": "2.3%",
+                    "memory": "256MB",
+                    "config": configuration,
+                    "items": config,
+                } for group, config in grouped_data.items()
+            ]
+        }
      
     except HTTPException as e:
         results['error'] = {
