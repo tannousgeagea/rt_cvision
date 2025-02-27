@@ -17,7 +17,12 @@ from fastapi.routing import APIRoute
 from datetime import datetime, timedelta
 from fastapi.responses import JSONResponse
 
-from configure.models import Service, ServiceParams
+from configure.models import (
+    Service, 
+    ServiceParams,
+    ServiceConfigGroup,
+    ServiceConfigFieldInstance,
+)
 from xmlrpc.client import ServerProxy
 server = ServerProxy(f'http://{os.environ["user"]}:{os.environ["password"]}@localhost:{os.environ["INET_HTTP_SERVER_PORT"]}/RPC2')
 
@@ -119,6 +124,39 @@ def get_uptime(items):
     
     return items[0]["description"]
 
+def get_service_config(service_id):
+    try:
+        service = Service.objects.get(service_name=service_id)
+    except Service.DoesNotExist:
+        return {"groups": []}
+    
+    groups = ServiceConfigGroup.objects.filter(service=service).order_by("order")
+    groups_data = []
+    
+    for group in groups:
+        fields_qs = ServiceConfigFieldInstance.objects.filter(group=group).order_by("order")
+        fields_data = []
+        for field in fields_qs:
+            fields_data.append({
+                "id": field.id,
+                "label": field.definition.label,
+                "value": field.value,
+                "default_value": field.definition.default_value,
+                "type": field.definition.input_type.name if field.definition.input_type else None,
+                "validation": field.definition.validation,
+                "description": field.definition.description,
+                "order": field.order,
+            })
+        groups_data.append({
+            "name": group.name,
+            "order": group.order,
+            "meta_info": group.meta_info,
+            "fields": fields_data,
+        })
+    
+    return {"groups": groups_data}
+
+
 router = APIRouter(
     prefix="/api/v1",
     tags=["Service"],
@@ -149,8 +187,9 @@ def get_service(response: Response):
                     "uptime": get_uptime(config),
                     "cpu": "2.3%",
                     "memory": "256MB",
-                    "config": configuration,
-                    "items": config,
+                    # "config": configuration,
+                    # "items": config,
+                    "config": get_service_config(service_id=group)
                 } for group, config in grouped_data.items()
             ]
         }

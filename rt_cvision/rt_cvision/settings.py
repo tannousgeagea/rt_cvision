@@ -129,6 +129,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 MEDIA_URL = "media/"
 MEDIA_ROOT = "/media/appuser/rt_cvision/experiments"
 
@@ -138,9 +140,9 @@ MEDIA_ROOT = "/media/appuser/rt_cvision/experiments"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 UNFOLD = {
-    "SITE_HEADER": _("Data Hub"),
-    "SITE_TITLE": _("Data Hub"),
-    "SITE_SYMBOL": "hub",
+    "SITE_HEADER": _("RTCVision"),
+    "SITE_TITLE": _("RTCVision"),
+    "SITE_SYMBOL": "visibility",
     # "SITE_LOGO": {
     #     "light": lambda r: static("wa-logo-green.png"),  # light mode
     #     "dark": lambda r: static("wa-logo-white.png"),  # dark mode
@@ -222,6 +224,27 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {
+                        "title": _("Value Types"),
+                        "icon": "type_specimen",
+                        "link": reverse_lazy(
+                            "admin:configure_valuetype_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Input Types"),
+                        "icon": "input",
+                        "link": reverse_lazy(
+                            "admin:configure_inputtype_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Configuration Fields"),
+                        "icon": 'manufacturing',
+                        "link": reverse_lazy(
+                            "admin:configure_configfielddefinition_changelist"
+                        ),
+                    },
+                    {
                         "title": _("Services"),
                         "icon": 'linked_services',
                         "link": reverse_lazy(
@@ -233,6 +256,13 @@ UNFOLD = {
                         "icon": 'settings',
                         "link": reverse_lazy(
                             "admin:configure_serviceparams_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Service Config Group"),
+                        "icon": 'tab_group',
+                        "link": reverse_lazy(
+                            "admin:configure_serviceconfiggroup_changelist"
                         ),
                     },
                     {

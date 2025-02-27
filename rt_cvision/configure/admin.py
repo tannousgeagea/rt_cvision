@@ -39,8 +39,12 @@ class ValueTypeAdmin(ModelAdmin):
 class InputTypeAdmin(ModelAdmin):
     list_display = ("name", "description", "created_at", "updated_at")
 
+@admin.register(ConfigFieldDefinition)
+class ConfigFieldDefinitionAdmin(ModelAdmin):
+    list_display = ("field_id", "label", "value_type", "input_type")
+
 @admin.register(ServiceConfigGroup)
-class ServiceConfigGroupAdmin(admin.ModelAdmin):
+class ServiceConfigGroupAdmin(ModelAdmin):
     inlines = [ServiceConfigFieldInstanceInline]
     list_display = ('name', 'service', 'order')
     list_filter = ('service',)

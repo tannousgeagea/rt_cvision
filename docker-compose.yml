@@ -1,18 +1,5 @@
-version: '3.3'
 
-services:
-  # roscore
-  # roscore:
-    # image: ros:noetic-ros-core
-    # env_file: .env
-    # container_name: rt-cvision-roscore
-    # network_mode: host
-    # command: roscore
-    # restart: always
-    # ports:
-    #   - "11312:11312"
-      
-  # redis
+services:      
   redis:
     image: "redis:alpine"
     container_name: rt-cvision-redis
@@ -24,7 +11,6 @@ services:
     networks:
       - internal
 
-  # zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     container_name: rt-cvision-zookeeper
@@ -35,7 +21,6 @@ services:
     networks:
       - internal
 
-  # kafka
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: rt-cvision-kafka
@@ -53,7 +38,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
 
-  # computing unit
   rt-cvision:
     image: wasteant/wasteant:rt-cvision-${CUDA_VERSION}-${ros_version:-ros2}-${ros_distro:-humble}
     container_name: rt-cvision-core
@@ -84,7 +68,7 @@ services:
       - kafka
     volumes:
       - ./:/home/$user/src
-      - data:/home/$user/src/rt_cvision/sqlite
+      # - data:/home/$user/src/rt_cvision/sqlite
       - media:/media/$user/rt_cvision
     user: ${user}
     environment:
@@ -95,13 +79,13 @@ services:
       group: appuser
       groupid: 1000
       CUDA_VERSION: 12.5.1-cudnn-runtime-ubuntu22.04
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 volumes:
   cache:
