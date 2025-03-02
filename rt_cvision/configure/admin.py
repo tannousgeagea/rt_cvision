@@ -48,7 +48,7 @@ class ServiceConfigGroupAdmin(ModelAdmin):
     inlines = [ServiceConfigFieldInstanceInline]
     list_display = ('name', 'service', 'order')
     list_filter = ('service',)
-    ordering = ('order',)
+    ordering = ('service', 'order')
     
 @admin.register(Service)
 class ServiceAdmin(ModelAdmin):

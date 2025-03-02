@@ -139,6 +139,12 @@ class ConfigFieldDefinition(models.Model):
     )
     description = models.TextField(blank=True, null=True)
     meta_info = models.JSONField(null=True, blank=True)
+    options = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="For select or multiselect input types, an array of available options. "
+                  "Each option can be an object with keys like 'id' and 'label'."
+    )
     
     class Meta:
         db_table = 'config_field_definition'

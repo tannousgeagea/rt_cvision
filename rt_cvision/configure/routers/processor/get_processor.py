@@ -146,6 +146,7 @@ def get_service_config(service_id):
                 "validation": field.definition.validation,
                 "description": field.definition.description,
                 "order": field.order,
+                "options": field.definition.options,
             })
         groups_data.append({
             "name": group.name,
