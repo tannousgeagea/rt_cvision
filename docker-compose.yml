@@ -39,7 +39,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
 
   rt-cvision:
-    image: wasteant/wasteant:rt-cvision-${CUDA_VERSION}-${ros_version:-ros2}-${ros_distro:-humble}
+    image: tannousgeagea/rtcvision:v1.0.1
     container_name: rt-cvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
