@@ -57,7 +57,6 @@ services:
         CUDA_VERSION: ${CUDA_VERSION}
     networks: 
       - internal
-      - db_witer_internal
     ports:
       - ${INET_HTTP_SERVER_PORT}:${INET_HTTP_SERVER_PORT}
       - ${DJANGO_ADMIN_PORT}:${DJANGO_ADMIN_PORT}
@@ -66,6 +65,7 @@ services:
     depends_on:
       - redis
       - kafka
+      - ros2
     volumes:
       - ./:/home/$user/src
       # - data:/home/$user/src/rt_cvision/sqlite
@@ -87,6 +87,17 @@ services:
               count: 1
               capabilities: [gpu]
 
+  ros2:
+    image: tannousgeagea/ros2:humble-desktop
+    container_name: ros2_bag_player
+    stdin_open: true
+    tty: true
+    networks: 
+      - internal
+    volumes:
+      - /home/wasteantadmin/Workspace/Datasets:/rosbags
+    # command: ["ros2", "bag", "play", "/rosbags/rosbag2_2025_03_03-12_15_43_0.db3", '--loop']
+
 volumes:
   cache:
     driver: local
@@ -97,6 +108,3 @@ volumes:
 
 networks:
   internal:
-    driver: bridge
-  db_witer_internal:
-    external: true

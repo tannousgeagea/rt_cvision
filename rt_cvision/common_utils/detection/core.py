@@ -31,6 +31,7 @@ class Detections:
     xyxyn: np.ndarray
     xy: Optional[np.ndarray] = None
     xyn: Optional[np.ndarray] = None
+    mask: Optional[np.ndarray] = None
     confidence: Optional[np.ndarray] = None
     class_id: Optional[np.ndarray] = None
     tracker_id: Optional[np.ndarray] = None
@@ -54,6 +55,7 @@ class Detections:
             np.ndarray,
             Optional[np.ndarray],
             Optional[np.ndarray],
+            Optional[np.ndarray],
             Optional[float],
             Optional[int],
             Optional[int],
@@ -73,6 +75,7 @@ class Detections:
                 self.xyxyn[i],
                 get_data_from_list(self.xy, i) if self.xy is not None else None,
                 get_data_from_list(self.xyn, i) if self.xyn is not None else None,
+                self.mask[i] if self.mask is not None else None,
                 self.confidence[i] if self.confidence is not None else None,
                 self.class_id[i] if self.class_id is not None else None,
                 self.tracker_id[i] if self.tracker_id is not None else None,
@@ -87,6 +90,7 @@ class Detections:
         return all(
             [
                 np.array_equal(self.xyxy, other.xyxy),
+                np.array_equal(self.mask, other.mask),
                 np.array_equal(self.class_id, other.class_id),
                 np.array_equal(self.confidence, other.confidence),
                 np.array_equal(self.tracker_id, other.tracker_id),
@@ -133,6 +137,7 @@ class Detections:
             xyxyn=self.xyxyn[index],
             xy=get_data_from_list(self.xy, index) if self.xy is not None else None,
             xyn=get_data_from_list(self.xyn, index) if self.xyn is not None else None,
+            mask=self.mask[index] if self.mask is not None else None,
             confidence=self.confidence[index] if self.confidence is not None else None,
             class_id=self.class_id[index] if self.class_id is not None else None,
             tracker_id=self.tracker_id[index] if self.tracker_id is not None else None,
@@ -211,6 +216,7 @@ class Detections:
             'xyxyn': self.xyxyn.tolist(),
             'xy': [xy.tolist() for xy in self.xy] if self.xy is not None else self.xy,
             'xyn': [xyn.tolist() for xyn in self.xyn] if self.xyn is not None else self.xyn,
+            'mask': self.mask.tolist(),
             'confidence_score': self.confidence.tolist() if self.confidence is not None else self.confidence,
             'class_id': self.class_id.tolist() if self.class_id is not None else self.class_id,
             'tracker_id': self.tracker_id.tolist() if self.tracker_id is not None else self.tracker_id,
@@ -233,6 +239,55 @@ class Detections:
             object_length=np.array(results.get('object_length', None)) if 'object_length' in results.keys() else None,
             object_area=np.array(results.get('object_area', None)) if 'object_area' in results.keys() else None,
             uid=np.array(results.get('object_uid', None)) if 'object_uid' in results.keys() else None,
+        )
+    
+    @classmethod
+    def from_ultralytics(cls, ultralytics_results) -> 'Detections':
+        """
+        Creates a `sv.Detections` instance from a
+        [YOLOv8](https://github.com/ultralytics/ultralytics) inference result.
+
+        !!! Note
+
+            `from_ultralytics` is compatible with
+            [detection](https://docs.ultralytics.com/tasks/detect/),
+            [segmentation](https://docs.ultralytics.com/tasks/segment/), and
+            [OBB](https://docs.ultralytics.com/tasks/obb/) models.
+
+        Args:
+            ultralytics_results (ultralytics.yolo.engine.results.Results):
+                The output Results instance from Ultralytics
+
+        Returns:
+            Detections: A new Detections object.
+
+        Example:
+            ```python
+            import cv2
+            import supervision as sv
+            from ultralytics import YOLO
+
+            image = cv2.imread(<SOURCE_IMAGE_PATH>)
+            model = YOLO('yolov8s.pt')
+            results = model(image)[0]
+            detections = sv.Detections.from_ultralytics(results)
+            ```
+        """
+        CLASS_NAME_DATA_FIELD = "class_name"
+        class_id = ultralytics_results.boxes.cls.cpu().numpy().astype(int)
+        class_names = np.array([ultralytics_results.names[i] for i in class_id])
+        return cls(
+            xyxy=ultralytics_results.boxes.xyxy.cpu().numpy(),
+            xyxyn=ultralytics_results.boxes.xyxyn.cpu().numpy(),
+            # xy=ultralytics_results.masks.xy if ultralytics_results.masks is not None else None,
+            # xyn=ultralytics_results.masks.xyn if ultralytics_results.masks is not None else None,
+            mask=ultralytics_results.masks.data.cpu().numpy() if ultralytics_results.masks is not None else None,
+            confidence=ultralytics_results.boxes.conf.cpu().numpy(),
+            class_id=class_id,
+            tracker_id=ultralytics_results.boxes.id.int().cpu().numpy()
+            if ultralytics_results.boxes.id is not None
+            else None,
+            data={CLASS_NAME_DATA_FIELD: class_names},
         )
     
     def to_txt(self, txt_file:str, task:str='detect',):

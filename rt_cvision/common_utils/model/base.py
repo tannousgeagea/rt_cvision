@@ -59,27 +59,40 @@ class BaseModels:
         final_results = {}
         if self.model:
             # results = self.model.track(image, persist=True, conf=conf, classes=classes) if mode=='track' else self.model.predict(image, conf=conf, classes=classes)
+            start_inf = time.time()
             results = self.track(image, conf=conf, classes=classes) if mode=="track" else self.predict(image, conf=conf)
+            logging.info(f"Detection Time: {round((time.time() - start_inf) * 1000, 2)} ms")
+
+
+            test_time = time.time()
+            det = Detections.from_ultralytics(
+                ultralytics_results=results[0]
+            )
+            logging.info(f"Test Time: {round((time.time() - test_time) * 1000, 2)} ms")
+            # writ_time = time.time()
+            # final_results = self.write_result(final_results, 'class_names', results[0].names)
+            # if not results[0].probs is None:
+            #     final_results = self.write_result(final_results, 'probabilities', results[0].probs.data.cpu().numpy().tolist())
             
-            final_results = self.write_result(final_results, 'class_names', results[0].names)
-            if not results[0].probs is None:
-                final_results = self.write_result(final_results, 'probabilities', results[0].probs.data.cpu().numpy().tolist())
+            # if not results[0].boxes is None:
+            #     final_results = self.write_result(final_results, 'xyxy', results[0].boxes.xyxy.cpu().numpy().astype(int).tolist())
+            #     final_results = self.write_result(final_results, 'xyxyn', results[0].boxes.xyxyn.cpu().numpy().tolist())
+            #     final_results = self.write_result(final_results, 'confidence_score', results[0].boxes.conf.cpu().numpy().tolist())
+            #     final_results = self.write_result(final_results, 'class_id', results[0].boxes.cls.cpu().numpy().astype(int).tolist())
+            #     if not results[0].boxes.id is None:
+            #         final_results = self.write_result(final_results, 'tracker_id', results[0].boxes.id.cpu().numpy().astype(int).tolist())
             
-            if not results[0].boxes is None:
-                final_results = self.write_result(final_results, 'xyxy', results[0].boxes.xyxy.cpu().numpy().astype(int).tolist())
-                final_results = self.write_result(final_results, 'xyxyn', results[0].boxes.xyxyn.cpu().numpy().tolist())
-                final_results = self.write_result(final_results, 'confidence_score', results[0].boxes.conf.cpu().numpy().tolist())
-                final_results = self.write_result(final_results, 'class_id', results[0].boxes.cls.cpu().numpy().astype(int).tolist())
-                if not results[0].boxes.id is None:
-                    final_results = self.write_result(final_results, 'tracker_id', results[0].boxes.id.cpu().numpy().astype(int).tolist())
-            
-            if not results[0].masks is None:
-                final_results = self.write_result(final_results, 'xy', results[0].masks.xy)
-                final_results = self.write_result(final_results, 'xyn', results[0].masks.xyn)
-            # else:
-            #     final_results = self.write_result(final_results, 'xy', [])
-            #     final_results = self.write_result(final_results, 'xyn', [])
+            # if not results[0].masks is None:
+            #     final_results = self.write_result(final_results, 'xy', results[0].masks.xy)
+            #     final_results = self.write_result(final_results, 'xyn', results[0].masks.xyn)
+            # # else:
+            # #     final_results = self.write_result(final_results, 'xy', [])
+            # #     final_results = self.write_result(final_results, 'xyn', [])
                 
+            # logging.info(f"Writing Time: {round((time.time() - writ_time) * 1000, 2)} ms")
+
+
+            # final_results = det.to_dict()
         return final_results if is_json else Detections.from_dict(final_results)
     
     def write_result(self, result, key, value):

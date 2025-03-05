@@ -1,3 +1,4 @@
+import time
 import logging
 from common_utils.model.base import BaseModels
 from common_utils.detection.core import Detections
@@ -27,6 +28,7 @@ def predict(image):
         assert not image is None, f'Image is None'
         assert not model is None, f'Model is None'
         
+        start_time = time.time()
         h, w, _ = image.shape
         if roi:
             roi_pixels = [(int(x * w), int(y * h)) for x, y in roi]
@@ -37,8 +39,11 @@ def predict(image):
         else:
             c_image = image.copy()
         
-        results = model.classify_one(image=c_image, conf=float(config_manager.segmentation.conf), mode=config_manager.segmentation.mode)
-        detections = Detections.from_dict(results=results)
+        start_inf = time.time()
+        detections = model.classify_one(image=c_image, conf=float(config_manager.segmentation.conf), mode=config_manager.segmentation.mode, is_json=False)
+        logging.info(f"Inference Time: {round((time.time() - start_inf) * 1000, 2)} ms")
+        
+        # detections = Detections.from_dict(results=results)
         if roi:
             detections = detections.adjust_to_roi(
                 offset=(x_min, y_min),
@@ -54,6 +59,7 @@ def predict(image):
             )
             detections = detections[filtered_results]
         
+        logging.info(f"Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
     except Exception as err:
         logging.error(f'Unexpected Error in Segmentation: {err}')
     

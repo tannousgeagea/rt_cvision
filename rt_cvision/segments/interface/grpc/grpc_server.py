@@ -39,11 +39,11 @@ class ServiceImpl(waste_segments_service_pb2_grpc.ComputingUnitServicer):
         assert not retrieved_image is None, f'Retrieved image is None'
         
         detections = predictor.predict(image=retrieved_image)
-        processor.execute(
-            cv_image=retrieved_image, 
-            detections=detections, 
-            data=data,
-            )
+        # processor.execute(
+        #     cv_image=retrieved_image, 
+        #     detections=detections, 
+        #     data=data,
+        #     )
         
         result = json.dumps(
             {
