@@ -1,4 +1,5 @@
 import time
+import torch
 import logging
 from common_utils.model.base import BaseModels
 from common_utils.detection.core import Detections
@@ -41,9 +42,8 @@ def predict(image):
         
         start_inf = time.time()
         detections = model.classify_one(image=c_image, conf=float(config_manager.segmentation.conf), mode=config_manager.segmentation.mode, is_json=False)
-        logging.info(f"Inference Time: {round((time.time() - start_inf) * 1000, 2)} ms")
+        print(f"3. Total Inference Time: {round((time.time() - start_inf) * 1000, 2)} ms")
         
-        # detections = Detections.from_dict(results=results)
         if roi:
             detections = detections.adjust_to_roi(
                 offset=(x_min, y_min),
@@ -59,7 +59,14 @@ def predict(image):
             )
             detections = detections[filtered_results]
         
-        logging.info(f"Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
+        print(f"4. Total Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
+
+        torch.cuda.empty_cache()
+        max_memory_usage = torch.cuda.max_memory_allocated() / (1024 * 1024)
+        reserved_memory = torch.cuda.max_memory_reserved() / (1024 * 1024)
+
+        print(f'Memory Usage: {max_memory_usage} mb')
+        print(f'Reserved Memory Usage: {reserved_memory} mb')
     except Exception as err:
         logging.error(f'Unexpected Error in Segmentation: {err}')
     

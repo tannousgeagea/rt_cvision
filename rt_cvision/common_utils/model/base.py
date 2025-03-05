@@ -61,14 +61,13 @@ class BaseModels:
             # results = self.model.track(image, persist=True, conf=conf, classes=classes) if mode=='track' else self.model.predict(image, conf=conf, classes=classes)
             start_inf = time.time()
             results = self.track(image, conf=conf, classes=classes) if mode=="track" else self.predict(image, conf=conf)
-            logging.info(f"Detection Time: {round((time.time() - start_inf) * 1000, 2)} ms")
-
+            print(f"1. Yolo Inference Time: {round((time.time() - start_inf) * 1000, 2)} ms")
 
             test_time = time.time()
-            det = Detections.from_ultralytics(
+            detections = Detections.from_ultralytics(
                 ultralytics_results=results[0]
             )
-            logging.info(f"Test Time: {round((time.time() - test_time) * 1000, 2)} ms")
+            print(f"2. Converting to Detection: {round((time.time() - test_time) * 1000, 2)} ms")
             # writ_time = time.time()
             # final_results = self.write_result(final_results, 'class_names', results[0].names)
             # if not results[0].probs is None:
@@ -89,11 +88,11 @@ class BaseModels:
             # #     final_results = self.write_result(final_results, 'xy', [])
             # #     final_results = self.write_result(final_results, 'xyn', [])
                 
-            # logging.info(f"Writing Time: {round((time.time() - writ_time) * 1000, 2)} ms")
+            # print(f"Writing Time: {round((time.time() - writ_time) * 1000, 2)} ms")
 
 
             # final_results = det.to_dict()
-        return final_results if is_json else Detections.from_dict(final_results)
+        return detections #final_results if is_json else Detections.from_dict(final_results)
     
     def write_result(self, result, key, value):
         if key not in result.keys():

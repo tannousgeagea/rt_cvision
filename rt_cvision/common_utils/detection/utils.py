@@ -1,4 +1,5 @@
 
+import cv2
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -180,3 +181,38 @@ def adjust_to_original(coords, offset, crop_size, original_size, mode='xyxy'):
         raise ValueError("Mode should be one of 'xyxy', 'xyxyn', 'xy', or 'xyn'")
     
     return adjusted_coords
+
+def extract_ultralytics_masks(yolov8_results) -> Optional[np.ndarray]:
+    if not yolov8_results.masks:
+        return None
+
+    orig_shape = yolov8_results.orig_shape
+    inference_shape = tuple(yolov8_results.masks.data.shape[1:])
+
+    pad = (0, 0)
+
+    if inference_shape != orig_shape:
+        gain = min(
+            inference_shape[0] / orig_shape[0],
+            inference_shape[1] / orig_shape[1],
+        )
+        pad = (
+            (inference_shape[1] - orig_shape[1] * gain) / 2,
+            (inference_shape[0] - orig_shape[0] * gain) / 2,
+        )
+
+    top, left = int(pad[1]), int(pad[0])
+    bottom, right = int(inference_shape[0] - pad[1]), int(inference_shape[1] - pad[0])
+
+    mask_maps = []
+    masks = yolov8_results.masks.data.cpu().numpy()
+    for i in range(masks.shape[0]):
+        mask = masks[i]
+        mask = mask[top:bottom, left:right]
+
+        if mask.shape != orig_shape:
+            mask = cv2.resize(mask, (orig_shape[1], orig_shape[0]))
+
+        mask_maps.append(mask)
+
+    return np.asarray(mask_maps, dtype=bool)

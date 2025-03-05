@@ -3,7 +3,7 @@ import os
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional, Iterator, Dict, Tuple, Union, List
-from .utils import box_non_max_suppression, get_data_item, get_data_from_list, adjust_to_original
+from .utils import box_non_max_suppression, get_data_item, get_data_from_list, adjust_to_original, extract_ultralytics_masks
 from .convertor import xyxy2xywh
 
 @dataclass
@@ -216,7 +216,7 @@ class Detections:
             'xyxyn': self.xyxyn.tolist(),
             'xy': [xy.tolist() for xy in self.xy] if self.xy is not None else self.xy,
             'xyn': [xyn.tolist() for xyn in self.xyn] if self.xyn is not None else self.xyn,
-            'mask': self.mask.tolist(),
+            # 'mask': self.mask.tolist() if self.mask is not None else None,
             'confidence_score': self.confidence.tolist() if self.confidence is not None else self.confidence,
             'class_id': self.class_id.tolist() if self.class_id is not None else self.class_id,
             'tracker_id': self.tracker_id.tolist() if self.tracker_id is not None else self.tracker_id,
@@ -281,7 +281,7 @@ class Detections:
             xyxyn=ultralytics_results.boxes.xyxyn.cpu().numpy(),
             # xy=ultralytics_results.masks.xy if ultralytics_results.masks is not None else None,
             # xyn=ultralytics_results.masks.xyn if ultralytics_results.masks is not None else None,
-            mask=ultralytics_results.masks.data.cpu().numpy() if ultralytics_results.masks is not None else None,
+            # mask=extract_ultralytics_masks(ultralytics_results),
             confidence=ultralytics_results.boxes.conf.cpu().numpy(),
             class_id=class_id,
             tracker_id=ultralytics_results.boxes.id.int().cpu().numpy()

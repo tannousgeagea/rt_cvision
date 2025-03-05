@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from common_utils.object_size.core import ObjectSizeBase
 
 class ObjectSizeEst(ObjectSizeBase):
@@ -7,8 +8,8 @@ class ObjectSizeEst(ObjectSizeBase):
         
     def execute(self, objects, input_shape, correction_factor:float=0.001):
         try:
-            index, object_length, object_area = self.process(
-                xyn=objects.get('xyn'),
+            index, object_length, object_area = self.compute_object_length_bbox(
+                bboxes=np.array(objects.get('xyxyn')),
                 input_shape=input_shape,
                 correction_factor=correction_factor,
             )

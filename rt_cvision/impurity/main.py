@@ -33,6 +33,8 @@ class Processor:
         try:
             data = self.register_objects(data)
             segments = Detections.from_dict(data)
+
+            print(segments.object_length)
             indices = np.where(segments.object_length >= mapping_threshold[1])[0]
             segments = segments[indices]
             
@@ -160,7 +162,7 @@ class Processor:
             new_objects (dict): Dictionary of newly registered objects.
             objects (dict): Original dictionary with updated 'object_uid' for known tracker_ids.
         """
-        assert 'xyn' in objects.keys(), f"key: xyn not found in objects"
+        assert 'xyxyn' in objects.keys(), f"key: xyn not found in objects"
         object_tracker_id = objects.get('tracker_id', [])
                 
         if not object_tracker_id:

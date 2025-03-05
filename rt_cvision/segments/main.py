@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import logging
 import random
@@ -27,13 +28,19 @@ class Processor:
     def execute(self, cv_image, detections:Detections, data:dict):
         try:
             objects = detections.to_dict()
+
+            start_est_size = time.time()
             objects = self.object_size_est.execute(
                 objects=objects, 
                 input_shape=cv_image.shape,
                 correction_factor=config_manager.segmentation.correction_factor,
                 )
+            print(f"5. Estimatint Size: {round((time.time() - start_est_size) * 1000, 2)} ms")
 
+            start_tracking = time.time()
             instances, all_instances = self.register_objects(objects=objects)
+            print(f"6. Estimatint Size: {round((time.time() - start_tracking) * 1000, 2)} ms")
+
             h0, w0, _ = cv_image.shape
 
             kafka_msg = {
@@ -54,12 +61,14 @@ class Processor:
             }
             
             for key, value in config_manager.segmentation.tasks.items():
+                start_task = time.time()
                 func = tasks.get(key)
                 if value:
                     print(f'Executing {key} ... ', end='')
                     func(params)
                     print('Done !')
-            
+                print(f"7. Task {key}: {round((time.time() - start_task) * 1000, 2)} ms")
+
         except Exception as err:
             logging.error(f"Error while executing detections in segments: {err}")
             
@@ -76,9 +85,9 @@ class Processor:
             new_objects (dict): Dictionary of newly registered objects.
             objects (dict): Original dictionary with updated 'object_uid' for known tracker_ids.
         """
-        assert 'xyn' in objects.keys(), f"key: xyn not found in objects"
+        assert 'xyxyn' in objects.keys(), f"key: xyxyn not found in objects"
         object_tracker_id = objects.get('tracker_id', [])
-        objects['object_uid'] = [str(uuid.uuid4()) for _ in range(len(objects['xyn']))]
+        objects['object_uid'] = [str(uuid.uuid4()) for _ in range(len(objects['xyxyn']))]
                 
         if not object_tracker_id:
             objects['tracker_id'] = [random.randint(100000, 999999) for _ in objects['object_uid']]

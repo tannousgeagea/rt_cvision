@@ -83,6 +83,38 @@ class ObjectSizeBase:
 
         return index, total_object_length, total_object_area
     
+    def compute_object_length_bbox(self, bboxes: np.ndarray, input_shape, correction_factor: float):
+        """
+        Process an array of normalized bounding boxes using vectorized NumPy operations
+        to compute object sizes.
+
+        Args:
+            bboxes (np.ndarray): Array of shape (N, 4) where each row is [xmin, ymin, xmax, ymax]
+                                 with normalized coordinates (values between 0 and 1).
+            input_shape (Tuple[int, int]): Image dimensions (height, width).
+            correction_factor (float): Factor to convert pixel measurements to metric.
+
+        Returns:
+            tuple: Three lists containing:
+                - Object indices,
+                - Object lengths (after applying the correction factor),
+                - Object areas (normalized by the image area).
+        """
+        height, width, _ = input_shape
+        logging.info(bboxes.shape)
+        xmin = bboxes[:, 0] * width
+        ymin = bboxes[:, 1] * height
+        xmax = bboxes[:, 2] * width
+        ymax = bboxes[:, 3] * height
+
+        widths = xmax - xmin
+        heights = ymax - ymin
+
+        object_lengths = np.maximum(widths, heights) * correction_factor
+        object_areas = (widths * heights) / (width * height)
+        indices = np.arange(bboxes.shape[0])
+        return indices.tolist(), object_lengths.tolist(), object_areas.tolist()
+    
 if __name__ == "__main__":
     xyn = [
     (0.202366428125, 0.265762784375), (0.21614583125000003, 0.2642702359375),
