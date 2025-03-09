@@ -41,7 +41,7 @@ class InputTypeAdmin(ModelAdmin):
 
 @admin.register(ConfigFieldDefinition)
 class ConfigFieldDefinitionAdmin(ModelAdmin):
-    list_display = ("field_id", "label", "value_type", "input_type")
+    list_display = ("id", "field_id", "label", "value_type", "input_type")
 
 @admin.register(ServiceConfigGroup)
 class ServiceConfigGroupAdmin(ModelAdmin):
@@ -49,6 +49,11 @@ class ServiceConfigGroupAdmin(ModelAdmin):
     list_display = ('name', 'service', 'order')
     list_filter = ('service',)
     ordering = ('service', 'order')
+@admin.register(ServiceConfigFieldInstance)
+class ServiceConfigFieldInstanceAdmin(ModelAdmin):
+    list_display = ["id", "group", "definition", "value"]
+    list_filter = ('group', )
+    ordering = ("id", "group")
     
 @admin.register(Service)
 class ServiceAdmin(ModelAdmin):

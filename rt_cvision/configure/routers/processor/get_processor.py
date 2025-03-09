@@ -188,7 +188,6 @@ def get_service(response: Response):
                     "uptime": get_uptime(config),
                     "cpu": "2.3%",
                     "memory": "256MB",
-                    # "config": configuration,
                     # "items": config,
                     "config": get_service_config(service_id=group)
                 } for group, config in grouped_data.items()
@@ -376,6 +375,8 @@ def stop_group(response: Response, group_name:str):
         
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     
+    print(results)
+    print(response.status_code)
     return results
 
 @router.api_route(
