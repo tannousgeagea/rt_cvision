@@ -1,12 +1,15 @@
 import re
 import os
 import time
+import random
+import asyncio
 from fastapi import Response, Request
 from fastapi import FastAPI, HTTPException, Body, Query
 from pydantic import BaseModel, Field
 from fastapi.routing import APIRoute
 from fastapi import APIRouter
 from typing import List, Any, Callable
+from fastapi.responses import StreamingResponse
 from xmlrpc.client import ServerProxy
 
 class TimedRoute(APIRoute):
@@ -35,6 +38,7 @@ class LogEntry(BaseModel):
     level: str
     message: str
 
+
 def parse_log(log_text: str) -> List[LogEntry]:
     """
     Parses raw log text into a list of LogEntry objects.
@@ -57,36 +61,43 @@ def parse_log(log_text: str) -> List[LogEntry]:
     return log_entries
 
 @router.api_route(
-    "/logs", methods=["GET"], tags=["Logs"]
-)
-def get_process_log(
+    "/logs/stream")
+async def stream_logs(
+    request: Request,
     process_name: str,
     offset: int = Query(0, ge=0, description="Starting offset in the log file"),
     length: int = Query(1000, gt=0, description="Number of characters to read"),
     log_type: str = Query("stdout", regex="^(stdout|stderr)$", description="Log type: stdout or stderr")
-):
+    ):
     """
-    Fetches the log for the specified process from Supervisor.
-    This API calls Supervisor's XML-RPC method `tailProcessLog` or `tailProcessErrLog`
-    depending on the requested log type.
+    Streams logs from Supervisor in real time using Server-Sent Events (SSE).
+    The raw log data is fetched from Supervisor using its XML-RPC API, then parsed
+    into structured log entries and sent as JSON data.
     """
+    async def event_generator():
+        current_offset = offset
+        while True:
+            if await request.is_disconnected():
+                print("disconnected")
+                break
+            try:
+                server = ServerProxy(f'http://{os.environ["user"]}:{os.environ["password"]}@localhost:{os.environ["INET_HTTP_SERVER_PORT"]}/RPC2')
+                if log_type == "stdout":
+                    log_data = server.supervisor.tailProcessStdoutLog(process_name, current_offset, length)
+                else:
+                    log_data = server.supervisor.tailProcessStderrLog(process_name, current_offset, length)
 
-    process_name = f"segmentation:{process_name}"
-    try:
-        server = ServerProxy(f'http://{os.environ["user"]}:{os.environ["password"]}@localhost:{os.environ["INET_HTTP_SERVER_PORT"]}/RPC2')
-        if log_type == "stdout":
-            log_data = server.supervisor.tailProcessStdoutLog(process_name, offset, length)
-        else:
-            log_data = server.supervisor.tailProcessStderrLog(process_name, offset, length)
-        
-        # log_data is a tuple: (log_content, new_offset, overflow)
-        log_content, new_offset, overflow = log_data
-        log_content = parse_log(log_content)
+                log_content, new_offset, overflow = log_data
+                entries = parse_log(log_content)
 
-        return {
-            "log": log_content,
-            "offset": new_offset,
-            "overflow": overflow
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                for entry in entries:
+                    print(entry)
+                    yield f"data: {entry.json()}\n\n"
+
+                current_offset = new_offset
+            except Exception as e:
+                yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+                break
+
+            await asyncio.sleep(3)
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
