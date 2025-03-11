@@ -21,7 +21,7 @@ jobs:
       - name: Get latest tag
         id: get-latest-tag
         run: |
-          TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          TAG=$(git describe --tags `git rev-list --tags --max-count=1` || echo "v2.0.3")
           echo "Latest tag: $TAG"
           echo "TAG=$TAG" >> $GITHUB_ENV
 
