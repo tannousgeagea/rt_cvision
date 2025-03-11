@@ -96,7 +96,7 @@ services:
       - internal
     volumes:
       - /home/wasteantadmin/Workspace/Datasets:/rosbags
-    # command: ["ros2", "bag", "play", "/rosbags/rosbag2_2025_03_03-12_15_43_0.db3", '--loop']
+    command: ["ros2", "bag", "play", "/rosbags/rosbag2_2025_03_03-12_15_43_0.db3", '--loop']
 
 volumes:
   cache:
