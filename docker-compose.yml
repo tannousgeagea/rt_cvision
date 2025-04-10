@@ -39,7 +39,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
 
   rt-cvision:
-    image: tannousgeagea/rtcvision:v1.0.1
+    image: tannousgeagea/rtcvision:${TAG}
     container_name: rt-cvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
