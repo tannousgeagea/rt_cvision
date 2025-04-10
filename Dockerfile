@@ -11,10 +11,10 @@ LABEL com.wasteant.version="1.1b1"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # [CHECK] Whether it is convenient to use the local user values or create ENV variables, or run everyhting with root
-ARG user
-ARG userid
-ARG group
-ARG groupid
+ARG user=appuser
+ARG userid=1000
+ARG group=appuser
+ARG groupid=1000
 ARG ros_distro=humble
 ARG ros_version=ros2
 ARG installation_folder="./installation_files"
