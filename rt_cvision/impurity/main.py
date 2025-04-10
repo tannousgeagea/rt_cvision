@@ -23,6 +23,7 @@ from impurity.tasks import plant_controller
 from common_utils.material_cls.core import filter_from_material
 from common_utils.duplicate_tracker.core import DuplicateTracker
 from common_utils.timezone_utils.timeloc import get_location_and_timezone, convert_to_local_time
+from common_utils.severity_refiner.core import SeverityLevelXDetector
 from impurity.tasks.check_objects import (
     check_object_severity_level,
     check_object_size,
@@ -77,6 +78,17 @@ class Processor:
     def __init__(self) -> None:
         self.map_tracker_id_2_object_uid = {}
         self.tracker = DuplicateTracker(buffer_size=10, iou_threshold=0.5, expiry_minutes=10)
+        
+        self.severity_refiner = None
+        severity_level_detector = parameters.get('severity_level_detector', {})
+        if severity_level_detector and severity_level_detector.get('is_active', False):
+            self.severity_refiner = SeverityLevelXDetector(
+                model_path=severity_level_detector.get('model_path'), 
+                mlflow=severity_level_detector.get('mlflow'),
+                conf_threshold=severity_level_detector.get('conf_threshold', 0.25),
+                X=severity_level_detector.get('X', 2),
+                cf=config_manager.params.get('segmentation').get('correction_factor')
+                )
     
     def execute(self, detections:Detections, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
         try:
@@ -104,12 +116,16 @@ class Processor:
                 mapping_key=mapping_key, 
                 mapping_threshold=mapping_threshold,
             )
-            
+
             problematic_objects = self.register_objects(problematic_objects)
             problematic_objects = filter_from_material(problematic_objects, cv_image, filter_materials=['PLASTIC'])
+            
+            if self.severity_refiner and self.severity_refiner.model:
+                problematic_objects = self.severity_refiner.integrate(problematic_objects, cv_image, iou_threshold=0.5)
+
             if not problematic_objects.get('xyxyn'):
                 return
-            
+
             problematic_objects = self.check_duplicate(objects=problematic_objects)
 
             if not problematic_objects.get('xyxyn'):

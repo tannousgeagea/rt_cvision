@@ -39,7 +39,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
 
   rt-cvision:
-    image: tannousgeagea/rtcvision:v1.0.1
+    image: tannousgeagea/rtcvision:dev
     container_name: rt-cvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
@@ -69,7 +69,7 @@ services:
     volumes:
       - ./:/home/$user/src
       # - data:/home/$user/src/rt_cvision/sqlite
-      - media:/media/$user/rt_cvision
+      - ~/Workspace/Datasets:/media/$user/rt_cvision
     user: ${user}
     environment:
       ros_version: ros2
