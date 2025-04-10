@@ -317,10 +317,11 @@ def polygon_to_mask(polygon: np.ndarray, resolution_wh: Tuple[int, int]) -> np.n
             `1`'s and the rest is filled with `0`'s.
     """
     width, height = resolution_wh
-    mask = np.zeros((height, width))
+    mask = np.zeros((height, width), dtype=np.uint8)
 
-    cv2.fillPoly(mask, [polygon], color=1)
+    cv2.fillPoly(mask, [polygon], color=255)
     return mask
+    
 
 def mask_to_xyxy(masks: np.ndarray) -> np.ndarray:
     """
@@ -483,3 +484,61 @@ def scale_boxes(xyxy: np.ndarray, factor: float) -> np.ndarray:
     centers = (xyxy[:, :2] + xyxy[:, 2:]) / 2
     new_sizes = (xyxy[:, 2:] - xyxy[:, :2]) * factor
     return np.concatenate((centers - new_sizes / 2, centers + new_sizes / 2), axis=1)
+
+def rescale_polygon(polygon: np.ndarray, wh0: Tuple[int, int], wh: Tuple[int, int]) -> np.ndarray:
+    xyxyn = polygon / np.array([wh0[0], wh0[1]])
+    xyxy = xyxyn * np.array([wh[0], wh[1]])
+    return xyxy.astype(np.int32).squeeze()
+
+def copy_and_paste(
+    img: np.ndarray,
+    polygon: np.ndarray,
+    target_shape: Tuple[int, int] = (640, 640),
+    kernel: np.ndarray = np.ones((5, 5), np.uint8),
+) -> np.ndarray:
+    """
+    Extracts an object from an image using a polygon mask and pastes it onto a white background.
+    
+    Args:
+        img (np.ndarray): Input image (H, W, C).
+        polygon (np.ndarray): Polygon outlining the object (N, 2).
+        target_shape (Tuple[int, int]): Size of output image (width, height).
+        kernel (np.ndarray): Kernel for morphological dilation.
+
+    Returns:
+        np.ndarray: Image with object pasted onto a white background.
+    """
+    w0, h0 = target_shape
+    if polygon.shape[0] <= 1:
+        return np.ones((h0, w0, 3), dtype=np.uint8) * 255
+    polygon = polygon.astype(np.int32)
+    epsilon = 0.01 * cv2.arcLength(polygon, True)
+    polygon = cv2.approxPolyDP(polygon, epsilon, True)
+    if polygon is None:
+        return np.ones((h0, w0, 3), dtype=np.uint8) * 255
+    
+    polygon = rescale_polygon(polygon, wh0=(img.shape[1], img.shape[0]), wh=(w0, h0))
+    mask = polygon_to_mask(polygon, resolution_wh=(w0, h0))
+    mask = cv2.dilate(mask, kernel, iterations=3)
+    resized = cv2.resize(img, (w0, h0), interpolation=cv2.INTER_LINEAR)
+    extracted = cv2.bitwise_and(resized, resized, mask=mask)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if not contours:
+        return np.ones((h0, w0, 3), dtype=np.uint8) * 255  
+    
+    largest_contour = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    if w == 0 or h == 0:
+        return np.ones((h0, w0, 3), dtype=np.uint8) * 255
+
+    object_cropped = extracted[y:y+h, x:x+w]
+    mask_cropped = mask[y:y+h, x:x+w]
+    background = np.full((h0, w0, 3), 255, dtype=np.uint8)
+
+    center_x = (w0 - w) // 2
+    center_y = (h0 - h) // 2
+    region = background[center_y:center_y+h, center_x:center_x+w]
+    region[mask_cropped > 0] = object_cropped[mask_cropped > 0]
+
+    return background

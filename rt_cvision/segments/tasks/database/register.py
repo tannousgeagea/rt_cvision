@@ -31,7 +31,7 @@ def save_results_into_db(params):
         objects = params.get('objects')
         assert 'object_uid' in objects, f'Missing key in objects: object_uid'
         assert 'tracker_id' in objects, f'Missing key in objects: tracker_id'
-        assert 'xyn' in objects, f'Missing key in objects: xyn'
+        # assert 'xyn' in objects, f'Missing key in objects: xyn'
         assert 'object_area' in objects, f'Missing key in objects: object_area'
         assert 'confidence_score' in objects, f'Missing key in objects: confidence_score'
         assert 'object_length' in objects, f'Missing key in objects: object_length'
@@ -43,7 +43,7 @@ def save_results_into_db(params):
                     'timestamp': datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
                     'object_uid': objects.get('object_uid'),
                     'object_tracker_id': objects.get('tracker_id'),
-                    'object_polygon': objects.get('xyn'),
+                    'object_polygon': [None] * len(objects.get('object_uid')), #objects.get('xyn'),
                     'confidence_score': objects.get('confidence_score'),
                     'object_area': objects.get('object_area'),
                     'object_length': objects.get('object_length'),

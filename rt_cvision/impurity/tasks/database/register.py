@@ -51,7 +51,8 @@ def save_results_into_db(params ):
                     "img_id": params.get('snapshot_id'), 
                     'model_name': params.get('model_name'),
                     'model_tag': params.get('model_tag'),
-                    'meta_info': params.get('meta_info'),       
+                    'meta_info': params.get('meta_info'),
+                    'location': params.get('location'),      
                 }
             }
         )

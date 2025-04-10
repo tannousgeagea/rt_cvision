@@ -14,8 +14,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 from common_utils.services.redis_manager import RedisManager
 from impurity.interface.grpc import impurity_service_pb2
 from impurity.interface.grpc import impurity_service_pb2_grpc
+from impurity.tasks.detect import predictor
 from impurity.main import Processor
-
+from configure.client import config_manager
+parameters = config_manager.params.get('impurity')
+classes:list = parameters.get("classes")
 
 processor = Processor()
 redis_manager = RedisManager(
@@ -24,6 +27,7 @@ redis_manager = RedisManager(
     db=os.environ['REDIS_DB'],
     password=os.environ['REDIS_PASSWORD'],
 )
+
 
 class ServiceImpl(impurity_service_pb2_grpc.ComputingUnitServicer):
     def ProcessData(self, request, context):
@@ -38,14 +42,15 @@ class ServiceImpl(impurity_service_pb2_grpc.ComputingUnitServicer):
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        # detections = predictor.predict(image=retrieved_image)
-        processor.execute(cv_image=retrieved_image, data=data, classes=None)
+        detections = predictor.predict(image=retrieved_image)
+        processor.execute(detections=detections, cv_image=retrieved_image, data=data, classes=classes)
         
         result = json.dumps(
             {
                 'action': 'done',
                 'task_id': img_key,
-                'datetime': data.get('datetime', None)
+                'datetime': data.get('datetime', None),
+                'detections': detections.to_dict(),
             }
         )
         

@@ -82,7 +82,7 @@ class ObjectSizeBase:
             logging.error(f"Unexpected Error in processing contour in computing object size: {err}")
 
         return index, total_object_length, total_object_area
-    
+
     def compute_object_length_bbox(self, bboxes: np.ndarray, input_shape, correction_factor: float):
         """
         Process an array of normalized bounding boxes using vectorized NumPy operations
@@ -100,8 +100,12 @@ class ObjectSizeBase:
                 - Object lengths (after applying the correction factor),
                 - Object areas (normalized by the image area).
         """
+
+        if bboxes is None or bboxes.shape[0] == 0:
+            logging.info("No bounding boxes provided.")
+            return [], [], []  # Return empty lists if no bboxes
+        
         height, width, _ = input_shape
-        logging.info(bboxes.shape)
         xmin = bboxes[:, 0] * width
         ymin = bboxes[:, 1] * height
         xmax = bboxes[:, 2] * width

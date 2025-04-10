@@ -13,8 +13,6 @@ from asgi_correlation_id import correlation_id
 
 from configure.routers.params import endpoints
 from configure.routers.processor import get_processor
-from configure.routers.configuration import endpoint
-from configure.routers import logs
 
 def create_app() -> FastAPI:
     tags_meta = [
@@ -49,8 +47,6 @@ def create_app() -> FastAPI:
 
     app.include_router(endpoints.router)
     app.include_router(get_processor.router)
-    app.include_router(endpoint.router)
-    app.include_router(logs.endpoint.router)
     
     return app
 

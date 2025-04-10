@@ -41,7 +41,7 @@ def draw(params):
             )
 
         annotator.add_legend(
-            legend_text=convert_to_local_time(datetime.now(), timezone_str=timezone_str).strftime(DATETIME_FORMAT),
+            legend_text=convert_to_local_time(datetime.now(), timezone_str=timezone_str).strftime(DATETIME_FORMAT) + f" | {params.get('entity_loc')}",
             font_scale=2,
             font_thickness=2
         )

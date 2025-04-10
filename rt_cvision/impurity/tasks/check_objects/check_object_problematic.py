@@ -5,7 +5,7 @@ from typing import Union
 from typing import Optional, Dict, List
 from common_utils.detection.core import Detections
 from common_utils.detection.utils import box_iou_batch
-from impurity.tasks.severity_level.assign_severity_level import SEVERITY_LEVEL_MAP
+from impurity.tasks.severity_level.assign_severity_level import SEVERITY_LEVEL_MAP, SEVERITY_LEVEL_MAP_vectorized
 
 def is_object_problematic(
     detections:Detections, 
@@ -37,9 +37,17 @@ def is_object_problematic(
             if isinstance(value, list)
         }
         
-        problematic_detection = SEVERITY_LEVEL_MAP(
-            objects=problematic_detection, key=mapping_key, thresholds=mapping_threshold
-        )
+        if not len(problematic_detection["class_id"]):
+            return problematic_detection
+
+        if mapping_key == 'class_id':
+            problematic_detection = SEVERITY_LEVEL_MAP_vectorized(
+                objects=problematic_detection, key="class_id", thresholds=[1, 2, 3]
+                )
+        else:
+            problematic_detection = SEVERITY_LEVEL_MAP(
+                objects=problematic_detection, key=mapping_key, thresholds=mapping_threshold
+            )
         
     except Exception as err:
         logging.error(f'Error in checking objects problematic: {err}')

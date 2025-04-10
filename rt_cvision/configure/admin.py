@@ -1,60 +1,10 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline, StackedInline
-from .models import (
-    Service, 
-    ServiceParams, 
-    AppConfig,
-    DataSource,
-    DataAcquisitionConfig,
-)
-
-from .models import (
-    ServiceConfigGroup,
-    ServiceConfigFieldInstance,
-    ConfigFieldDefinition,
-    ValueType,
-    InputType,
-)
+from .models import Service, ServiceParams
 
 class ServiceParamsInline(TabularInline):
     model = ServiceParams
 
-class ServiceConfigFieldInstanceInline(TabularInline):
-    model = ServiceConfigFieldInstance
-    extra = 1
-    fields = ('definition', 'value', 'order', 'meta_info')
-    ordering = ('order',)
-    
-class ServiceConfigGroupInline(TabularInline):
-    model = ServiceConfigGroup
-    extra = 1
-    fields = ('name', 'order', 'meta_info')
-    ordering = ('order',)
-
-@admin.register(ValueType)
-class ValueTypeAdmin(ModelAdmin):
-    list_display = ("name", "description", "created_at", "updated_at")
-
-@admin.register(InputType)
-class InputTypeAdmin(ModelAdmin):
-    list_display = ("name", "description", "created_at", "updated_at")
-
-@admin.register(ConfigFieldDefinition)
-class ConfigFieldDefinitionAdmin(ModelAdmin):
-    list_display = ("id", "field_id", "label", "value_type", "input_type")
-
-@admin.register(ServiceConfigGroup)
-class ServiceConfigGroupAdmin(ModelAdmin):
-    inlines = [ServiceConfigFieldInstanceInline]
-    list_display = ('name', 'service', 'order')
-    list_filter = ('service',)
-    ordering = ('service', 'order')
-@admin.register(ServiceConfigFieldInstance)
-class ServiceConfigFieldInstanceAdmin(ModelAdmin):
-    list_display = ["id", "group", "definition", "value"]
-    list_filter = ('group', )
-    ordering = ("id", "group")
-    
 @admin.register(Service)
 class ServiceAdmin(ModelAdmin):
     list_display = ('service_id', 'service_name', 'description', 'created_at')
@@ -70,7 +20,7 @@ class ServiceAdmin(ModelAdmin):
         }),
     )
     
-    inlines = [ServiceConfigGroupInline, ServiceParamsInline]
+    inlines = [ServiceParamsInline]
 
 @admin.register(ServiceParams)
 class ServiceParamsAdmin(ModelAdmin):
@@ -99,16 +49,3 @@ class ServiceParamsAdmin(ModelAdmin):
             raise ValueError('Value must be a boolean')
 
         super().save_model(request, obj, form, change)
-
-@admin.register(AppConfig)
-class AppConfigAdmin(ModelAdmin):
-    list_display = ("is_configured", "created_at")
-    
-    
-@admin.register(DataSource)
-class DataSourceAdmin(ModelAdmin):
-    list_display = ("name", "interface", "is_available", "last_detected")
-    
-@admin.register(DataAcquisitionConfig)
-class DataAcquisitionConfigAdmin(ModelAdmin):
-    list_display = ("selected_source", )

@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 import logging
-from common_utils.sync.core import sync
+from common_utils.sync.core import sync, sync_to_alarm
 
 
 def sync_media_to_cloud(
@@ -14,6 +14,12 @@ def sync_media_to_cloud(
         assert 'event_uid' in params, f'Missing argument in sync_media_to_cloud: event_uid'
         assert 'media_file' in params, f"Missing argument in sync_media_to_cloud: media_file"
         assert 'filename' in params, f'Missing argument in sync_media_to_cloud: filename'
+
+        if params.get("edge_2_cloud_url_data"):
+            sync_to_alarm(
+                url=params['edge_2_cloud_url_data'],
+                params=params,
+            )
 
         sync(
             url=params['edge_2_cloud_url'],

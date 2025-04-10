@@ -19,7 +19,21 @@ from visualizes.tasks.publish import (
     publish_image_to_ros2,
 )
 from visualizes.tasks.annotate.base import draw
+from configure.client import config_manager
+parameters = config_manager.params.get('visualizer')
 
+object_length_threshold = [0., 0.3, 0.5, 1.]
+mapping_object_color = [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)]
+
+imp_parameters = config_manager.params.get('impurity')
+if "object_length_threshold" in imp_parameters.keys():
+    object_length_threshold = imp_parameters.get('object_length_threshold')
+
+if "mapping_object_color" in imp_parameters.keys():
+    mapping_object_color = imp_parameters.get("mapping_object_color")
+    
+
+debug = parameters.get("debug")
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
     port=os.environ['REDIS_PORT'],
@@ -39,7 +53,6 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        object_length_threshold = [0., 0.3, 0.5, 1.]
         labels = [
             f'{int(object_length_threshold[i] * 100)} - {int(object_length_threshold[i+1] * 100)} cm'
             for i in range(len(object_length_threshold) - 1)
@@ -49,7 +62,7 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
             "cv_image": retrieved_image.copy(),
             "line_width": 3,
             "thresholds": object_length_threshold,
-            "colors": [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)],
+            "colors": mapping_object_color,
             "objects": data,
             "legend": labels,
         }
@@ -64,6 +77,25 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
             # topic='/sensor_processed/rgbmatrix_01/impurity_detection/live_mode'
         )
         
+        if debug:
+            os.makedirs("/media/appuser/debug/snaps", exist_ok=True)
+            os.makedirs("/media/appuser/debug/raw", exist_ok=True)
+
+            snap = f"/media/appuser/debug/snaps/{str(time.time())}.jpg"
+            raw = f"/media/appuser/debug/raw/{str(time.time())}.jpg"
+            logging.info(f"DEBUG: storing {snap}")
+
+            cv2.imwrite(
+                f"{raw}",
+                retrieved_image,
+            )
+
+            logging.info(f"DEBUG: storing {raw}")
+            cv2.imwrite(
+                f"{snap}",
+                image,
+            )
+
         result = json.dumps(
             {
                 'action': 'done',

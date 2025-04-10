@@ -1,6 +1,8 @@
 import os
+import gc
 import time
 import uuid
+import torch
 import logging
 import random
 import numpy as np
@@ -9,11 +11,13 @@ from common_utils.detection.core import Detections
 from segments.tasks.object_size.estimate_object_size import ObjectSizeEst
 from segments.tasks.publish.core import publish_to_kafka
 from common_utils.timezone_utils.timeloc import get_location_and_timezone, convert_to_local_time
-from configure.client import ConfigManager
+from configure.client import config_manager
+
 
 timezone_str = get_location_and_timezone()
 logging.info(f"Local Timezone: {timezone_str}")
-config_manager = ConfigManager()
+
+parameters = config_manager.params.get('segmentation')
 
 tasks = {
     'publish_to_kafka': publish_to_kafka,
@@ -27,13 +31,14 @@ class Processor:
     
     def execute(self, cv_image, detections:Detections, data:dict):
         try:
+            start_time = time.time()
             objects = detections.to_dict()
 
             start_est_size = time.time()
             objects = self.object_size_est.execute(
                 objects=objects, 
                 input_shape=cv_image.shape,
-                correction_factor=config_manager.segmentation.correction_factor,
+                correction_factor=parameters.get('correction_factor'),
                 )
             print(f"5. Estimatint Size: {round((time.time() - start_est_size) * 1000, 2)} ms")
 
@@ -50,7 +55,7 @@ class Processor:
             
             params = {
                 'message': kafka_msg,
-                'db_url': config_manager.segmentation.db_url,
+                'db_url': parameters.get('db_url'),
                 'objects': instances,
                 'model_name': 'wasteant-segmentation',
                 'model_tag': 'v003',
@@ -60,7 +65,7 @@ class Processor:
                 }
             }
             
-            for key, value in config_manager.segmentation.tasks.items():
+            for key, value in parameters.get('tasks').items():
                 start_task = time.time()
                 func = tasks.get(key)
                 if value:
@@ -68,7 +73,7 @@ class Processor:
                     func(params)
                     print('Done !')
                 print(f"7. Task {key}: {round((time.time() - start_task) * 1000, 2)} ms")
-
+            
         except Exception as err:
             logging.error(f"Error while executing detections in segments: {err}")
             
@@ -79,7 +84,7 @@ class Processor:
         of tracker_id to object_uid. If tracker_id is already known, it reuses the existing object_uid.
 
         Args:
-            objects (dict): Dictionary containing object data with keys such as 'tracker_id' and 'xyn'.
+            objects (dict): Dictionary containing object data with keys such as 'tracker_id' and 'xyxyn'.
 
         Returns:
             new_objects (dict): Dictionary of newly registered objects.

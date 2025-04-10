@@ -19,9 +19,13 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 
+admin.site.site_header = "RT Computer Vision Ops"
+admin.site.site_title = "rt_CVision"
+admin.site.index_title = "Welcome to reat time Computer Vision Dashboard Portal"
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 ]
 
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -11,7 +11,6 @@ severity_level_map = {
     '3': 'Hoch'
 }
 
-
 def send_email(params):
     success = False
     try:
@@ -21,26 +20,40 @@ def send_email(params):
         assert 'event_description' in params, f'Missing argument in post_email: event_description'
         assert 'snapshot_url' in params, f'Missing argument in post_email: url_img_name'
         assert 'email_url' in params, f'Missing argument in post_email: email_url'
-        
-        if not int(params['severity_level']) > 1:
+   
+        sv = max(params['severity_level'])
+        if not int(sv) > 1:
             return success
         
+        timestamp = params.get("timestamp")
         if isinstance(timestamp, datetime):
             timestamp = timestamp.strftime(DATETIME_FORMAT)
             
+        objects = params.get("objects", {})
+        outliers = [round(o * 100) for o in objects.get("object_length", [])]
+
         result = {
+            "tenant_domain": params['tenant_domain'],
             "event_type": "Störstoff", 
-            "event_timestamp": timestamp, 
-            "event_severity_level": severity_level_map[str(params.get("severity_level"))], 
-            "event_location": params.get('location'), 
-            "plant_id": params.get('plant_id'),
-            'snapshot': params.get('snapshot_url'),
+            "timestamp": timestamp, 
+            "severity_level": severity_level_map[str(sv)], 
+            "location": params.get('tenant_location'), 
+            'image_url': params.get('snapshot_url'),
             'delivery_id': params.get('delivery_id'),
-            'region': params.get('delivery_region'),
-            'event_description': params.get('event_description'),
+            'region': params.get('location_loc'),
+            'alarm_description': f"{len(outliers)} prob. Langteile: {outliers} cm",
             }
         
-        response = requests.post(params.get('email_url'), data=json.dumps(result), headers={'Content-Type': 'application/json'})
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        
+
+        logging.info(result)
+        response = requests.post(params.get('email_url'), data=json.dumps(result), headers=headers)
+        print("Status Code:", response.status_code)
+        print("Response Body:", response.text)
         response.raise_for_status()
 
     except requests.RequestException as e:
