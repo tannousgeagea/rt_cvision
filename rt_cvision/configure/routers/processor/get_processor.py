@@ -147,6 +147,7 @@ def get_service_config(service_id):
                 "description": field.definition.description,
                 "order": field.order,
                 "options": field.definition.options,
+                "thresholds": field.value if field.definition.input_type.name == "threshold" else None,
             })
         groups_data.append({
             "name": group.name,
