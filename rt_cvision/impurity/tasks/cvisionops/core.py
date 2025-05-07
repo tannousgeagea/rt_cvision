@@ -1,4 +1,5 @@
 import os
+import cv2
 import time
 import requests
 from celery import shared_task
@@ -6,6 +7,17 @@ import logging
 from datetime import datetime
 logger = logging.getLogger(__name__)
 from common_utils.sync.core import sync
+from common_utils.model.base import BaseModels
+from configure.client import config_manager
+parameters = config_manager.params.get('impurity')
+
+model = BaseModels(
+    weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
+)
+
+CVISIONOPS_API_URL = "http//cvisionops.want:29085"
+CVISIONOPS_PROJECT_NAME = "amk_front_impurity"
+
 
 def post_annotations(api_url, project_name, image_id, annotation_type, annotations):
     """
@@ -70,7 +82,7 @@ def execute(self, instance, **kwargs):
         if not os.path.exists(media_file):
             raise ValueError(f"{media_file} does not exist")
         
-        url = "http://10.7.0.6:29085/api/v1/images"
+        url = f"{CVISIONOPS_API_URL}/api/v1/images"
         params = {
             "source_of_origin": wi.image.sensorbox.sensor_box_name,
             "image_id": wi.image.image_id,
@@ -88,13 +100,22 @@ def execute(self, instance, **kwargs):
             raise ValueError(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
 
 
-        post_annotations(
-            api_url="http://10.7.0.6:29085",
-            project_name = "amk_front_impurity",
-            image_id=wi.image.image_id,
-            annotation_type='bounding_boxes',
-            annotations=[[wi.class_id] + wi.object_coordinates],
+        cv_image = cv2.imread(image.image_file.path)
+        detections = model.classify_one(
+            image=cv_image,
+            conf=parameters.get('conf', 0.25),
+            mode="detect"
         )
+
+        for i, xyxyn in detections.xyxyn:
+            post_annotations(
+                api_url=f"{CVISIONOPS_API_URL}",
+                project_name = f"{CVISIONOPS_PROJECT_NAME}",
+                image_id=wi.image.image_id,
+                annotation_type='bounding_boxes',
+                annotations=[[int(detections.class_id[i])] + xyxyn.tolist()],
+                # annotations=[[wi.class_id] + wi.object_coordinates],
+            )
 
         data.update(
             {
