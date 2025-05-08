@@ -8,12 +8,12 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 from common_utils.sync.core import sync
 from common_utils.model.base import BaseModels
-from configure.client import config_manager
-parameters = config_manager.params.get('impurity')
+# from configure.client import config_manager
+# parameters = config_manager.params.get('impurity')
 
-model = BaseModels(
-    weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
-)
+# model = BaseModels(
+#     weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
+# )
 
 CVISIONOPS_API_URL = "http//cvisionops.want:29085"
 CVISIONOPS_PROJECT_NAME = "amk_front_impurity"
