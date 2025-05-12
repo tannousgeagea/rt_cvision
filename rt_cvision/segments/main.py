@@ -27,7 +27,7 @@ tasks = {
 class Processor:
     def __init__(self) -> None:
         self.map_tracker_id_2_object_uid = {}
-        self.object_size_est = ObjectSizeEst()
+        self.object_size_est = ObjectSizeEst(zones=parameters.get("zone_config"))
     
     def execute(self, cv_image, detections:Detections, data:dict):
         try:

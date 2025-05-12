@@ -30,7 +30,7 @@ class ServiceParamsAdmin(ModelAdmin):
     readonly_fields = ('created_at',)
     fieldsets = (
         (None, {
-            'fields': ('service', 'name', 'value_type', 'input_type', 'value', 'description', 'meta_info')
+            'fields': ('service', 'name', 'value_type', 'input_type', 'value', 'description', 'is_active', 'meta_info')
         }),
         ('Timestamps', {
             'fields': ('created_at',),

@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 logger = logging.getLogger(__name__)
 from common_utils.sync.core import sync
-from common_utils.model.base import BaseModels
+# from common_utils.model.base import BaseModels
 # from configure.client import config_manager
 # parameters = config_manager.params.get('impurity')
 

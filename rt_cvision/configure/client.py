@@ -23,7 +23,7 @@ class ConfigManager:
         for service in self.services:
             self.params[service.service_name] = {
                 param.name: param.value
-                for param in ServiceParams.objects.filter(service=service)
+                for param in ServiceParams.objects.filter(service=service, is_active=True)
                 } 
     
 

@@ -78,11 +78,12 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
         )
         
         if debug:
-            os.makedirs("/media/appuser/debug/snaps", exist_ok=True)
-            os.makedirs("/media/appuser/debug/raw", exist_ok=True)
+            dest = "/media/appuser/rt_cvision"
+            os.makedirs(f"{dest}/debug/snaps", exist_ok=True)
+            os.makedirs(f"{dest}/debug/raw", exist_ok=True)
 
-            snap = f"/media/appuser/debug/snaps/{str(time.time())}.jpg"
-            raw = f"/media/appuser/debug/raw/{str(time.time())}.jpg"
+            snap = f"{dest}/debug/snaps/{str(time.time())}.jpg"
+            raw = f"{dest}/debug/raw/{str(time.time())}.jpg"
             logging.info(f"DEBUG: storing {snap}")
 
             cv2.imwrite(

@@ -34,6 +34,7 @@ class ServiceParams(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     description = models.CharField(max_length=255)
     meta_info = models.JSONField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, help_text="Indicates if the parameter is currently active.")
     
     class Meta:
         db_table = 'service_parameters'
