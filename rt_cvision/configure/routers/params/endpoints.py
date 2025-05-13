@@ -162,8 +162,6 @@ def get_service_data_by_service_name(response: Response, service_name:str):
 def get_service_param(response: Response, service_name:str, param=str):
     results = {}
     try:
-        data = []
-
         if not Service.objects.filter(service_name=service_name).exists():
             results['error'] = {
                 "status_code": "not found",
@@ -177,7 +175,7 @@ def get_service_param(response: Response, service_name:str, param=str):
         service = Service.objects.get(service_name=service_name)
         service_param = ServiceParams.objects.filter(service=service, name=param).first()
 
-        if not param:
+        if not service_param:
             return {
                 "name": param,
                 "value": None,

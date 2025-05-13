@@ -21,9 +21,6 @@ def get_param(param):
 
     return service_params["value"]
 
-CVISIONOPS_API_URL = get_param("cvision_api_url")
-CVISIONOPS_PROJECT_NAME = get_param("cvision_project_name")
-
 def post_annotations(api_url, project_name, image_id, annotation_type, annotations):
     """
     Posts annotations to the specified API endpoint.
@@ -77,7 +74,10 @@ def execute(self, instance, **kwargs):
     import django
     django.setup()
     from impurity.models import Impurity
+    CVISIONOPS_API_URL = get_param("cvision_api_url")
+    CVISIONOPS_PROJECT_NAME = get_param("cvision_project_name")
     data:dict = {}
+
     try:
         logger.info(f"Executing alarm with ID: {instance}")
         wi = Impurity.objects.get(id=instance)
