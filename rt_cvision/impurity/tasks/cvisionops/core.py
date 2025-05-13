@@ -7,17 +7,22 @@ import logging
 from datetime import datetime
 logger = logging.getLogger(__name__)
 from common_utils.sync.core import sync
-# from common_utils.model.base import BaseModels
-# from configure.client import config_manager
-# parameters = config_manager.params.get('impurity')
 
-# model = BaseModels(
-#     weights=parameters.get('weights'), task='impurity', mlflow=parameters.get('mlflow', {}).get('active', False)
-# )
 
-CVISIONOPS_API_URL = "http//cvisionops.want:29085"
-CVISIONOPS_PROJECT_NAME = "amk_front_impurity"
+def get_param(param):    
+    service_params = requests.get(
+        f"http://localhost:23085/api/v1/params/impurity/{param}",
+    )
 
+    if service_params.status_code == 200:
+        service_params = service_params.json()
+    else:
+        raise ValueError(f"Failed to upload file. Status code: {service_params.status_code}, Response: {service_params.text}")
+
+    return service_params["value"]
+
+CVISIONOPS_API_URL = get_param("cvision_api_url")
+CVISIONOPS_PROJECT_NAME = get_param("cvision_project_name")
 
 def post_annotations(api_url, project_name, image_id, annotation_type, annotations):
     """
@@ -44,7 +49,6 @@ def post_annotations(api_url, project_name, image_id, annotation_type, annotatio
         "Content-Type": "application/json",
     }
     
-    print(annotations)
     try:
         response = requests.post(url, headers=headers, params=params, json=annotations)
         response.raise_for_status()  # Raise an exception for HTTP errors
@@ -86,6 +90,7 @@ def execute(self, instance, **kwargs):
         params = {
             "source_of_origin": wi.image.sensorbox.sensor_box_name,
             "image_id": wi.image.image_id,
+            "project_id": CVISIONOPS_PROJECT_NAME
         }
         
         with open(media_file, "rb") as file:
@@ -100,20 +105,31 @@ def execute(self, instance, **kwargs):
             raise ValueError(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
 
 
-        cv_image = cv2.imread(image.image_file.path)
-        detections = model.classify_one(
-            image=cv_image,
-            conf=parameters.get('conf', 0.25),
-            mode="detect"
-        )
+        with open(media_file, "rb") as file:
+            files = {
+                "image": file
+            }
+            infer_response = requests.post("http://localhost:23085/api/v1/infer/impurity", params={"conf": 0.25}, files=files)
 
-        for i, xyxyn in detections.xyxyn:
+        if infer_response.status_code == 200:
+            print("File successfully uploaded:", infer_response.json())
+        else:
+            raise ValueError(f"Failed to upload file. Status code: {infer_response.status_code}, Response: {infer_response.text}")
+
+        infer_response = infer_response.json()
+        detections = infer_response.get("predictions", [])
+
+        print(CVISIONOPS_API_URL)
+        print(CVISIONOPS_PROJECT_NAME)
+
+        for i, detection in enumerate(detections):
+            print(f"Annotation: {[[int(detection['class_id'])] + detection['xyxyn']]}")
             post_annotations(
                 api_url=f"{CVISIONOPS_API_URL}",
                 project_name = f"{CVISIONOPS_PROJECT_NAME}",
                 image_id=wi.image.image_id,
                 annotation_type='bounding_boxes',
-                annotations=[[int(detections.class_id[i])] + xyxyn.tolist()],
+                annotations=[[int(detections['class_id'])] + detection["xyxyn"]],
                 # annotations=[[wi.class_id] + wi.object_coordinates],
             )
 
