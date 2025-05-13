@@ -156,6 +156,62 @@ def get_service_data_by_service_name(response: Response, service_name:str):
     
     return results
 
+@router.api_route(
+    "/params/{service_name}/{param}", methods=["GET"], tags=["ServiceParams"]
+)
+def get_service_param(response: Response, service_name:str, param=str):
+    results = {}
+    try:
+        data = []
+
+        if not Service.objects.filter(service_name=service_name).exists():
+            results['error'] = {
+                "status_code": "not found",
+                "status_description": f"query service_name {service_name} not found",
+                "detail": f"query service_name {service_name} not found; Possible options: {[s.service_name for s in Service.objects.all()]}",
+            }
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            
+            return results
+            
+        service = Service.objects.get(service_name=service_name)
+        service_param = ServiceParams.objects.filter(service=service, name=param).first()
+
+        if not param:
+            return {
+                "name": param,
+                "value": None,
+            }
+
+        return {
+                "name": service_param.name,
+                "value": service_param.value,
+                "input_type": service_param.input_type,
+                "description": service_param.description,
+                "meta_info": service_param.meta_info,
+            }
+
+            
+    except HTTPException as e:
+        results['error'] = {
+            "status_code": "not found",
+            "status_description": "Request not Found",
+            "detail": f"{e}",
+        }
+        
+        response.status_code = status.HTTP_404_NOT_FOUND
+    
+    except Exception as e:
+        results['error'] = {
+            'status_code': 'server-error',
+            "status_description": "Internal Server Error",
+            "detail": str(e),
+        }
+        
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    
+    return results
+
 
 @router.api_route(
     "/params/{service_name}", methods=["PUT"], tags=["ServiceParams"]

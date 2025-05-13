@@ -3,6 +3,7 @@ from data_reader.models import (
     Image
 )
 
+from .signals import queue_impurity_event
 
 class Impurity(models.Model):
     image = models.ForeignKey(Image, on_delete=models.RESTRICT, related_name='image')
@@ -22,4 +23,11 @@ class Impurity(models.Model):
         return f"Object {self.object_uid} ({self.class_id}) ({self.object_uid})"
     
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
         super().save(*args, **kwargs) 
+        if is_new:
+            try:
+                queue_impurity_event(self)
+            except Exception as e:
+                # Optional: logging instead of print
+                print(f"Redis push failed: {e}")
