@@ -4,6 +4,7 @@ import cv2
 import math
 import uuid
 import time
+import torch
 import django
 import shutil
 django.setup()
@@ -52,12 +53,6 @@ service_params = ServiceParams.objects.filter(service=service, is_active=True)
 for param in service_params:
     params[param.name] = param.value
 
-ai_model = get_model(
-    weights=params.get("weights"),
-    mlflow=params.get('mlflow', {}).get('active', False),
-    task="impurity"
-)
-
 @router.api_route(
     "/infer/impurity", methods=["POST"],
 )
@@ -65,6 +60,12 @@ async def infer(image: UploadFile = File(...), conf:float=0.25):
     image_bytes = await image.read()
     nparr = np.frombuffer(image_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    ai_model = get_model(
+        weights=params.get("weights"),
+        mlflow=params.get('mlflow', {}).get('active', False),
+        task="impurity"
+    )
 
     start_time = time.time()
     detections = ai_model.classify_one(
@@ -88,10 +89,16 @@ async def infer(image: UploadFile = File(...), conf:float=0.25):
         } for i, xyxy in enumerate(detections.xyxy.tolist())
     ]
 
+    torch.cuda.empty_cache()
+    max_memory_usage = torch.cuda.max_memory_allocated() / (1024 * 1024)
+    reserved_memory = torch.cuda.max_memory_reserved() / (1024 * 1024)
+
     return {
         "predictions": predictions,
         "height": img.shape[0],
         "width": img.shape[1],
         "key": image.filename,
-        "inference_time": round(end_time - start_time, 3)
+        "inference_time": round(end_time - start_time, 3),
+        "max_memory_usage": max_memory_usage,
+        "reserved_memory": reserved_memory,
         }
