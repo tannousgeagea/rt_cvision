@@ -86,7 +86,7 @@ def execute(self, instance, **kwargs):
         if not os.path.exists(media_file):
             raise ValueError(f"{media_file} does not exist")
         
-        url = f"{CVISIONOPS_API_URL}/api/v1/images"
+        url = f"{CVISIONOPS_API_URL}/api/v1/image"
         params = {
             "source_of_origin": wi.image.sensorbox.sensor_box_name,
             "image_id": wi.image.image_id,
@@ -95,7 +95,7 @@ def execute(self, instance, **kwargs):
         
         with open(media_file, "rb") as file:
             files = {
-                "files": file
+                "file": file
             }
             response = requests.post(url, params=params, files=files)
 
@@ -104,6 +104,11 @@ def execute(self, instance, **kwargs):
         else:
             raise ValueError(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
 
+
+        if "image_id" in response.json():
+            image_id = response.json().get('image_id')
+        else: 
+            image_id = wi.image.image_id
 
         with open(media_file, "rb") as file:
             files = {
@@ -127,7 +132,7 @@ def execute(self, instance, **kwargs):
             post_annotations(
                 api_url=f"{CVISIONOPS_API_URL}",
                 project_name = f"{CVISIONOPS_PROJECT_NAME}",
-                image_id=wi.image.image_id,
+                image_id=image_id,
                 annotation_type='bounding_boxes',
                 annotations=[[int(detection['class_id'])] + detection["xyxyn"]],
                 # annotations=[[wi.class_id] + wi.object_coordinates],
