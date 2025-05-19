@@ -87,7 +87,8 @@ class Processor:
                 mlflow=severity_level_detector.get('mlflow'),
                 conf_threshold=severity_level_detector.get('conf_threshold', 0.25),
                 X=severity_level_detector.get('X', 2),
-                cf=config_manager.params.get('segmentation').get('correction_factor')
+                cf=config_manager.params.get('segmentation').get('correction_factor'),
+                filter_config=parameters.get("filter_config"),
                 )
     
     def execute(self, detections:Detections, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):

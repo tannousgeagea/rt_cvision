@@ -6,9 +6,10 @@ import torch
 from common_utils.detection.utils import box_iou_batch
 from common_utils.model.base import BaseModels, Detections
 from common_utils.object_size.core import ObjectSizeBase
+from common_utils.filters.core import FilterEngine
 
 class SeverityLevelXDetector:
-    def __init__(self, model_path: str = None, mlflow:bool = False, conf_threshold:float=0.25, X:int=2, cf:float=0.001):
+    def __init__(self, model_path: str = None, mlflow:bool = False, conf_threshold:float=0.25, X:int=2, cf:float=0.001, filter_config:dict=None):
         self.model = None
         self.conf_threshold = conf_threshold
         self.object_size_est = ObjectSizeBase()
@@ -20,8 +21,21 @@ class SeverityLevelXDetector:
                 logging.info("Severity Level 2 model loaded successfully.")
             except Exception as err:
                 logging.error(f"Failed to load Severity Level 2 model: {err}")
+        elif mlflow:
+            self.model = self.load_model(weights=model_path, mlflow=mlflow)
         else:
             logging.warning("Severity Level 2 model path not provided or file does not exist.")
+
+        self.filter_config = filter_config
+        self.filter_engine = FilterEngine()
+        if filter_config:
+            for obj_type, filter_model in filter_config.items():
+                self.filter_engine.add_model(
+                    object_type=obj_type,
+                    detection_model=filter_model["model_path"],
+                    mlflow=filter_model["mlflow"],
+                    conf_threshold=filter_model.get('conf_threshold', 0.25),
+                )
     
     def load_model(self, path: str, mlflow=True):
         return BaseModels(weights=path, mlflow=mlflow)
@@ -64,6 +78,14 @@ class SeverityLevelXDetector:
         if not len(secondary_results):
             logging.info("No secondary detections available.")
             return primary_detections
+
+        if self.filter_config:
+            filtered_results = self.filter_engine.filter_objects(
+                image=full_image,
+                segmentation_results=secondary_results,
+                filter_types=list(self.filter_config.keys()),
+            )
+            secondary_results = secondary_results[filtered_results]
 
         primary_boxes = np.array(primary_detections.get("xyxyn", []))
         secondary_boxes = np.array(secondary_results.xyxyn)

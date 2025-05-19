@@ -82,6 +82,16 @@ def execute(self, instance, **kwargs):
         logger.info(f"Executing alarm with ID: {instance}")
         wi = Impurity.objects.get(id=instance)
         image = wi.image
+
+        if image.is_processed:
+            wi.is_processed = True
+            wi.save(update_fields=["is_processed"])
+            return {
+                "action": "skipped",
+                'time':  datetime.now().strftime("%Y-%m-%d %H-%M-%S"),
+                'result': 'Image already processed',
+            }
+        
         media_file = image.image_file.path
         if not os.path.exists(media_file):
             raise ValueError(f"{media_file} does not exist")
@@ -137,6 +147,12 @@ def execute(self, instance, **kwargs):
                 annotations=[[int(detection['class_id'])] + detection["xyxyn"]],
                 # annotations=[[wi.class_id] + wi.object_coordinates],
             )
+
+        image.is_processed = True
+        image.save(update_fields=["is_processed"])
+
+        wi.is_processed = True
+        wi.save(update_fields=["is_processed"])
 
         data.update(
             {
