@@ -22,7 +22,7 @@ class SeverityLevelXDetector:
             except Exception as err:
                 logging.error(f"Failed to load Severity Level 2 model: {err}")
         elif mlflow:
-            self.model = self.load_model(weights=model_path, mlflow=mlflow)
+            self.model = self.load_model(model_path, mlflow=mlflow)
         else:
             logging.warning("Severity Level 2 model path not provided or file does not exist.")
 
