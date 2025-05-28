@@ -54,6 +54,8 @@ class SeverityLevelXDetector:
             detections = self.model.classify_one(full_image, conf=self.conf_threshold, mode='detect')
             detections.class_id = np.array([self.X] * len(detections))
             detections.uid = np.array([str(uuid.uuid4()) for _ in range(len(detections))])
+            detections.tracker_id = np.array([np.random.randint(low=0, high=9999999) for _ in range(len(detections))])
+            detections.object_area = detections.box_area
             detections.object_length = np.array(
                 self.object_size_est.compute_object_length_bbox(
                     bboxes=detections.xyxyn,
@@ -79,6 +81,8 @@ class SeverityLevelXDetector:
             logging.info("No secondary detections available.")
             return primary_detections
 
+
+        logging.info(f"Secondary Detection: {secondary_results}")
         if self.filter_config:
             filtered_results = self.filter_engine.filter_objects(
                 image=full_image,
@@ -90,6 +94,7 @@ class SeverityLevelXDetector:
         primary_boxes = np.array(primary_detections.get("xyxyn", []))
         secondary_boxes = np.array(secondary_results.xyxyn)
         secondary_results = secondary_results.to_dict()
+
 
         # If there are no primary detections, return secondary detections with severity level set to 2.
         if len(primary_boxes) == 0:

@@ -30,6 +30,8 @@ from impurity.tasks.check_objects import (
     check_object_problematic,
 )
 
+
+from common_utils.roi.utils import _get_center, _is_within
 from configure.client import config_manager, entity, sensorbox, entity_loc
 parameters = config_manager.params.get('impurity')
 timezone_str = get_location_and_timezone()
@@ -70,7 +72,6 @@ delivery_api_url:str = parameters.get('delivery_api_url')
 share_edgebox_id:bool = parameters.get('share_edgebox_id', False)
 edge_2_cloud_url_data = parameters.get('edge_2_cloud_url_data')
 pc_url = parameters.get("pc_url")
-
 classes:list = [1, 2]
 
 
@@ -78,7 +79,8 @@ class Processor:
     def __init__(self) -> None:
         self.map_tracker_id_2_object_uid = {}
         self.tracker = DuplicateTracker(buffer_size=10, iou_threshold=0.5, expiry_minutes=10)
-        
+        self.roi = parameters.get("roi")
+
         self.severity_refiner = None
         severity_level_detector = parameters.get('severity_level_detector', {})
         if severity_level_detector and severity_level_detector.get('is_active', False):
@@ -148,12 +150,30 @@ class Processor:
                 }
             )
             
-            delivery_id = get(
-                url=delivery_api_url,
-                params={
-                    "timestamp": datetime.now(tz=timezone.utc)
-                }
-            )
+            within_roi = True
+
+            logging.info(f"ROI: {self.roi}")
+            if self.roi:
+                h, w, _ = cv_image.shape
+                roi_pixels = [(int(x * w), int(y * h)) for x, y in self.roi]
+                x_coords, y_coords = zip(*roi_pixels)
+                x_min, x_max = min(x_coords), max(x_coords)
+                y_min, y_max = min(y_coords), max(y_coords)
+                roi = [x_min, y_min, x_max, y_max]
+                centers = [_get_center(bbox) for bbox in problematic_objects.get('xyxyn', [])]
+                within_roi = [_is_within(point=center, roi=roi) for center in centers]
+                within_roi = any(within_roi)
+
+            if within_roi:
+                delivery_id = get(
+                    url=delivery_api_url,
+                    params={
+                        "timestamp": datetime.now(tz=timezone.utc)
+                    }
+                )
+            else:
+                logging.info("All objects are outside ROI")
+                delivery_id = None
             
             event_uid = str(uuid.uuid4())
             filename = (
@@ -273,7 +293,10 @@ class Processor:
                     unique_indices.append(i)
                 else:
                     logging.info(f"Detection {i} is a duplicate.")
-
+            
+            logging.info(objects)
+            logging.info(unique_indices)
+            
             objects = {
                 key: [value[i] for i in unique_indices]
                 for key, value in objects.items()
