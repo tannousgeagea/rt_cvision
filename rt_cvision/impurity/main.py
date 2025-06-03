@@ -155,8 +155,7 @@ class Processor:
             logging.info(f"ROI: {self.roi}")
             if self.roi:
                 h, w, _ = cv_image.shape
-                roi_pixels = [(int(x * w), int(y * h)) for x, y in self.roi]
-                x_coords, y_coords = zip(*roi_pixels)
+                x_coords, y_coords = zip(*self.roi)
                 x_min, x_max = min(x_coords), max(x_coords)
                 y_min, y_max = min(y_coords), max(y_coords)
                 roi = [x_min, y_min, x_max, y_max]
