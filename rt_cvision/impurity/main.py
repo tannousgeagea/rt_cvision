@@ -214,6 +214,10 @@ class Processor:
                 "tenant_location": f"{entity.entity_type.tenant.location}",
                 "meta_info": {
                     "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
+                    "object_length": problematic_objects.get('object_length'),
+                    "object_area": problematic_objects.get("object_area"),
+                    "value": max(problematic_objects.get('object_length')),
+                    "unit": "cm",
                 }
             }
             
