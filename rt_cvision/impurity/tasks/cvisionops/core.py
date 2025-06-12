@@ -144,7 +144,7 @@ def execute(self, instance, **kwargs):
                 project_name = f"{CVISIONOPS_PROJECT_NAME}",
                 image_id=image_id,
                 annotation_type='bounding_boxes',
-                annotations=[[int(detection['class_id'])] + detection["xyxyn"]],
+                annotations=[[int(detection['class_id'])] + detection["xyxyn"] + [float(detection["confidence"])]],
                 # annotations=[[wi.class_id] + wi.object_coordinates],
             )
 
