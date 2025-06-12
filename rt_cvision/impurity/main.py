@@ -24,6 +24,7 @@ from common_utils.material_cls.core import filter_from_material
 from common_utils.duplicate_tracker.core import DuplicateTracker
 from common_utils.timezone_utils.timeloc import get_location_and_timezone, convert_to_local_time
 from common_utils.severity_refiner.core import SeverityLevelXDetector
+from common_utils.context_shift.core import ContextShift
 from impurity.tasks.check_objects import (
     check_object_severity_level,
     check_object_size,
@@ -92,6 +93,18 @@ class Processor:
                 cf=config_manager.params.get('segmentation').get('correction_factor'),
                 filter_config=parameters.get("filter_config"),
                 )
+            
+        self.context_shift = None
+        context_shift = parameters.get('context_shift', {})
+        if context_shift and context_shift.get("is_active", False):
+            self.context_shift = ContextShift(
+                model_path=context_shift.get('model_path'), 
+                mlflow=context_shift.get('mlflow'),
+                conf_threshold=context_shift.get('conf_threshold', 0.25),
+                X=context_shift.get('X', 2),
+                cf=config_manager.params.get('segmentation').get('correction_factor'),
+                filter_config=parameters.get("filter_config"),
+            )
     
     def execute(self, detections:Detections, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
         try:
@@ -125,6 +138,10 @@ class Processor:
             
             if self.severity_refiner and self.severity_refiner.model:
                 problematic_objects = self.severity_refiner.integrate(problematic_objects, cv_image, iou_threshold=0.5)
+            
+            if self.context_shift and self.context_shift.model:
+                problematic_objects = self.context_shift.integrate(problematic_objects, cv_image, iou_threshold=0.5)
+            
 
             if not problematic_objects.get('xyxyn'):
                 return

@@ -21,11 +21,23 @@ def is_object_problematic(
             np.array(segments.get('xyxyn')),
             detections.xyxyn,
         )
-        
-        ious.sort() 
-        index = np.where(ious > iou_threshold)
-        for i, j in zip(index[0], index[1]):
+
+        matched_indices = np.where(ious > iou_threshold)
+        segment_idx = matched_indices[0]
+        detection_idx = matched_indices[1]
+
+        sorted_indices = np.argsort(-ious[segment_idx, detection_idx])  # Negative for descending sort
+        segment_idx = segment_idx[sorted_indices]
+        detection_idx = detection_idx[sorted_indices]
+        unique_detections, first_occurrences = np.unique(detection_idx, return_index=True)
+        segment_idx = segment_idx[first_occurrences]
+        detection_idx = detection_idx[first_occurrences]
+
+        for i, j in zip(segment_idx, detection_idx):
             segments['class_id'][i] = detections.class_id[j]
+            segments["xyxyn"][i] = detections.xyxyn[j].tolist()
+            segments["xyxy"][i] = detections.xyxy[j].tolist()
+
         
         problematic_detection = (ious > iou_threshold).any(axis=1)
         problematic_detection = {
@@ -37,6 +49,8 @@ def is_object_problematic(
             if isinstance(value, list)
         }
         
+
+        logging.info(problematic_detection)
         if not len(problematic_detection["class_id"]):
             return problematic_detection
 
