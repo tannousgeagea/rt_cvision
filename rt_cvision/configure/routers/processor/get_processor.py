@@ -39,6 +39,53 @@ class TimedRoute(APIRoute):
 
 def get_status(items):
     return "healthy" if all(item["statename"] == "RUNNING" for item in items) else "unhealthy"
+    return "active" if all(item["statename"] == "RUNNING" for item in items) else "inactive"
+
+def is_active(items):
+    return True if all(item["statename"] == "RUNNING" for item in items) else False
+
+def get_uptime(items):
+    if not items:
+        return ""
+    if not "description" in items[0]:
+        return ""
+    
+    return items[0]["description"]
+
+def get_service_config(service_id):
+    try:
+        service = Service.objects.get(service_name=service_id)
+    except Service.DoesNotExist:
+        return {"groups": []}
+    
+    groups = ServiceConfigGroup.objects.filter(service=service).order_by("order")
+    groups_data = []
+    
+    for group in groups:
+        fields_qs = ServiceConfigFieldInstance.objects.filter(group=group).order_by("order")
+        fields_data = []
+        for field in fields_qs:
+            fields_data.append({
+                "id": field.id,
+                "label": field.definition.label,
+                "value": field.value,
+                "default_value": field.definition.default_value,
+                "type": field.definition.input_type.name if field.definition.input_type else None,
+                "validation": field.definition.validation,
+                "description": field.definition.description,
+                "order": field.order,
+                "options": field.definition.options,
+                "thresholds": field.value if field.definition.input_type.name == "threshold" else None,
+            })
+        groups_data.append({
+            "name": group.name,
+            "order": group.order,
+            "meta_info": group.meta_info,
+            "fields": fields_data,
+        })
+    
+    return {"groups": groups_data}
+
 
 router = APIRouter(
     prefix="/api/v1",
