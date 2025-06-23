@@ -6,9 +6,12 @@ class FilterEngine:
     def __init__(self):
         self.detection_models = {}
 
-    def add_model(self, object_type: str, detection_model: str, mlflow:bool=False):
+    def add_model(self, object_type: str, detection_model: str, mlflow:bool=False, conf_threshold: float = 0.15):
         """Add a new detection model for a specific object type."""
-        self.detection_models[object_type] = BaseModels(weights=detection_model, mlflow=mlflow)
+        self.detection_models[object_type] = {
+            "model": BaseModels(weights=detection_model, mlflow=mlflow),
+            "conf_threshold": conf_threshold
+        }
 
     def filter_objects(self, image: Any, segmentation_results: List[Dict], filter_types: List[str]) -> List[Dict]:
         """
@@ -23,12 +26,15 @@ class FilterEngine:
         unwanted_rois = []
         for obj_type in filter_types:
             if obj_type in self.detection_models:
-                detection_results = self.detection_models[obj_type].classify_one(
+                model_entry = self.detection_models[obj_type]
+                detection_model = model_entry["model"]
+                conf_threshold = model_entry["conf_threshold"]
+                detection_results = detection_model.classify_one(
                     image=image,
-                    conf=0.15,
+                    conf=conf_threshold,
                     mode="detect",
                 )
-                unwanted_rois.extend([det for det in detection_results['xyxyn']])
+                unwanted_rois.extend([det for det in detection_results.xyxyn.tolist()])
         
         if not unwanted_rois:
             return range(len(segmentation_results))
