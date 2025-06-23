@@ -2,6 +2,7 @@
 
 set -e  # Exit on error
 
+source .env
 # === Configuration ===
 DOCKER_USER=$DOCKER_USER
 IMAGE_NAME=rtcvision
@@ -19,6 +20,8 @@ if [ -z "$TAG" ]; then
 fi
 
 echo "📦 Latest tag: $TAG"
+
+echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
 # === Step 2: Build Docker image with version tag and 'latest' ===
 echo "🐳 Building Docker image: $DOCKER_USER/$IMAGE_NAME:$TAG"
