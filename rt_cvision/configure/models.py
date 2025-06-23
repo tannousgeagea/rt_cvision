@@ -103,6 +103,7 @@ class ServiceConfigGroup(models.Model):
     name = models.CharField(max_length=255)
     order = models.PositiveIntegerField(default=0)
     meta_info = models.JSONField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, help_text="Indicates if the parameter is currently active.")
 
     class Meta:
         db_table = 'service_config_group'
@@ -145,6 +146,7 @@ class ConfigFieldDefinition(models.Model):
         help_text="For select or multiselect input types, an array of available options. "
                   "Each option can be an object with keys like 'id' and 'label'."
     )
+    is_active = models.BooleanField(default=True, help_text="Indicates if the parameter is currently active.")
     
     class Meta:
         db_table = 'config_field_definition'
@@ -180,6 +182,12 @@ class ServiceConfigFieldInstance(models.Model):
     )
     meta_info = models.JSONField(null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True, help_text="Indicates if the parameter is currently active.")
+    options = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Service-specific options for select/multiselect inputs. Overrides the default definition if set."
+    )
     
     class Meta:
         db_table = 'service_config_field_instance'

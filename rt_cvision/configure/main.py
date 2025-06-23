@@ -14,6 +14,8 @@ from asgi_correlation_id import correlation_id
 from configure.routers.params import endpoints
 from configure.routers.processor import get_processor
 from configure.routers.configuration import endpoint
+from configure.routers import tenant
+from configure.routers import data_acquisition
 from configure.routers import logs
 
 def create_app() -> FastAPI:
@@ -51,6 +53,8 @@ def create_app() -> FastAPI:
     app.include_router(get_processor.router)
     app.include_router(endpoint.router)
     app.include_router(logs.endpoint.router)
+    app.include_router(tenant.endpoint.router)
+    app.include_router(data_acquisition.endpoint.router)
     
     return app
 
