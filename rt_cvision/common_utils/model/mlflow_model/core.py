@@ -28,8 +28,8 @@ class ModelWrapper(mlflow.pyfunc.PythonModel):
     def infer(self, model_input:str, conf:float=0.25):
         return self.model.predict(model_input, conf=conf)
      
-    def track(self, model_input:str, conf:float=0.25):
-        return self.model.track(model_input, conf=conf, persist=True)
+    def track(self, model_input:str, conf:float=0.25, persist=True):
+        return self.model.track(model_input, conf=conf, persist=persist)
     
     
 def push(model_name, model_path):

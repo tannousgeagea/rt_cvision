@@ -23,8 +23,8 @@ keep_track_of_time = KeepTrackOfTime()
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
+    port=int(os.environ['REDIS_PORT']),
+    db=int(os.environ['REDIS_DB']),
     password=os.environ['REDIS_PASSWORD'],
 )
 

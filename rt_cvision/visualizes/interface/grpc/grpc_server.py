@@ -50,8 +50,8 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
             "line_width": 3,
             "thresholds": object_length_threshold,
             "colors": [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)],
-            "objects": data,
             "legend": labels,
+            **data,
         }
 
         image = draw(

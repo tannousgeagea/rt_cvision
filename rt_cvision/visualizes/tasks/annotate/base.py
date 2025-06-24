@@ -1,3 +1,5 @@
+import os
+import cv2
 import logging
 from typing import Dict
 import numpy as np
@@ -20,9 +22,8 @@ def draw(params):
     annotator = Annotator(im=params.get('cv_image'), line_width=params.get('line_width'))
     
     try:
-
-        assert "objects" in params.keys(), f"missing argument in draw: objects"
-        objects = params.get('objects')
+        assert "detections" in params.keys(), f"missing argument in draw: objects"
+        objects = params.get('detections')
         assert 'xyxy' in objects.keys(), f"bounding boxes of objects are not defined"
         assert 'object_length' in objects.keys(), f"object length of objects are not defined"
         
@@ -56,8 +57,9 @@ def draw(params):
                                 line_width=params.get('line_width'),
                         )
 
-        
+        os.makedirs("/media/snapshots", exist_ok=True)
+        cv2.imwrite(f"/media/snapshots/{os.path.basename(params['filename'])}", annotator.im.data)
     except Exception as err:
-        logging.error(f"Error while annotating image in Impurity: {err}")
+        logging.error(f"Error while annotating image in Viszalizer: {err}")
         
     return annotator.im.data

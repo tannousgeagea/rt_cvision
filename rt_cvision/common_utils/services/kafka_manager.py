@@ -1,4 +1,4 @@
-import cv2
+
 import json
 import time
 import logging
@@ -11,6 +11,8 @@ class KafkaServiceManager:
     def __init__(self, config=None, offset=None):
         self.config = config
         self.admin_client = AdminClient(self.config)
+        self.producer = None
+        self.consumer = None
         # self.producer = self.create_producer(self.producer_config)
         # self.consumer = self.create_consumer(self.consumer_config, offset=offset)
         
@@ -119,19 +121,23 @@ class KafkaServiceManager:
                         raise ValueError(f"Kafka Consumer Error: {msg.error()}")
                     
                 # callback function
-                callback(msg)
+                if callback:
+                    callback(msg)
         except KeyboardInterrupt:
            print("Message consuming interrupted by the user.")
         finally:
             self.consumer.close()
-            
-    def create_topic(self,
-                     topic_config, 
-                     topic_name, 
-                     num_partitions=1, 
-                     replication_factor=1,
-                     ):
-        
+
+    def create_topic(self, topic_name, topic_config, num_partitions=1, replication_factor=1, overwrite=False):
+        topics_list = self.list_topics()
+        if topic_name in topics_list:
+            if overwrite:
+                logging.info(f"Topic '{topic_name}' exists. Deleting...")
+                self.delete_topic(topic_name)
+            else:
+                logging.info(f"Topic '{topic_name}' already exists. Skipping creation.")
+                return
+
         new_topic = NewTopic(
             topic=topic_name,
             num_partitions=num_partitions,
@@ -139,21 +145,14 @@ class KafkaServiceManager:
             config=topic_config,
         )
         
-        topics_list = self.list_topics()
-        if topic_name in topics_list:
-            print(f'Topic {topic_name} exists. Deleting it ...')
-            self.delete_topic(topic_name=topic_name)
-            
         fs = self.admin_client.create_topics([new_topic])
-        
-        # Block until the topic is created
         for topic, f in fs.items():
             try:
-                f.result()  # The result itself is None
-                print(f"Topic {topic} created")
+                f.result()
+                logging.info(f"Topic '{topic}' created.")
             except Exception as e:
-                print(f"Failed to create topic {topic}: {e}")
-                
+                logging.error(f"Failed to create topic '{topic}': {e}")
+
     def delete_topic(self,
                      topic_name):
         # Delete the topic

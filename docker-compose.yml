@@ -11,15 +11,15 @@ services:
     networks:
       - internal
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: rt-cvision-zookeeper
-    restart: always
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - internal
+  # zookeeper:
+  #   image: confluentinc/cp-zookeeper:latest
+  #   container_name: rt-cvision-zookeeper
+  #   restart: always
+  #   environment:
+  #     ZOOKEEPER_CLIENT_PORT: 2181
+  #     ZOOKEEPER_TICK_TIME: 2000
+  #   networks:
+  #     - internal
 
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -27,16 +27,20 @@ services:
     restart: always
     networks: 
       - internal
-    depends_on:
-      - zookeeper
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_NODE_ID: 0
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      CLUSTER_ID: "TiKuMQwJRnGKVuEAAAFQKg"  # can be any UUID
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
   rt-cvision:
     image: tannousgeagea/rtcvision:${TAG}
@@ -69,7 +73,7 @@ services:
     volumes:
       - ./:/home/$user/src
       # - data:/home/$user/src/rt_cvision/sqlite
-      - media:/media/$user/rt_cvision
+      - /home/wasteant/ws/tannous/RTCVisionMedia:/media
     user: ${user}
     environment:
       ros_version: ros2

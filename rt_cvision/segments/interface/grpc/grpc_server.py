@@ -14,8 +14,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 from common_utils.services.redis_manager import RedisManager
 from segments.interface.grpc import waste_segments_service_pb2
 from segments.interface.grpc import waste_segments_service_pb2_grpc
-from segments.tasks.publish.core import publish_to_kafka
-from segments.tasks.segment import predictor
+# from segments.tasks.publish.core import publish_to_kafka
+# from segments.tasks.segment import predictor
 from segments.main import Processor
 
 redis_manager = RedisManager(
@@ -38,10 +38,10 @@ class ServiceImpl(waste_segments_service_pb2_grpc.ComputingUnitServicer):
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        detections = predictor.predict(image=retrieved_image)
+        # detections = predictor.predict(image=retrieved_image)
         processor.execute(
             cv_image=retrieved_image, 
-            detections=detections, 
+            # detections=detections, 
             data=data,
             )
         
