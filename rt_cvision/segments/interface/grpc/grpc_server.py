@@ -20,8 +20,8 @@ from segments.main import Processor
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
+    port=int(os.environ['REDIS_PORT']),
+    db=int(os.environ['REDIS_DB']),
     password=os.environ['REDIS_PASSWORD'],
 )
 
@@ -38,10 +38,8 @@ class ServiceImpl(waste_segments_service_pb2_grpc.ComputingUnitServicer):
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        # detections = predictor.predict(image=retrieved_image)
-        processor.execute(
-            cv_image=retrieved_image, 
-            # detections=detections, 
+        processor.run(
+            cv_image=retrieved_image,
             data=data,
             )
         

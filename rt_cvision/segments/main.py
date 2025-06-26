@@ -1,7 +1,7 @@
-import os
-import cv2
+
 import logging
 import numpy as np
+from typing import Dict
 from segments.utils.segments.core import Segmentation
 from segments.utils.object_size.core import ObjectSizeEst
 from configure.client import ServiceConfigClient
@@ -19,18 +19,18 @@ class Processor:
 
         self.config = self.config_client.load()
         self.map_tracker_id_2_object_uid = {}
-        self.object_size_est = ObjectSizeEst()
-        self.kafka_publisher = KafkaPublisher(topic_name="cvision-dl-ops-core-waste-segments", config=self.config)
-        self.tasks_runner = TaskRunner(tasks=self.tasks)
 
         logging.info("Parameters:")
         logging.info("---------------------")
         for key, value in self.config.items():
             logging.info(f"\t {key}: {value}")
 
+        self.object_size_est = ObjectSizeEst()
+        self.kafka_publisher = KafkaPublisher(topic_name="cvision-dl-ops-core-waste-segments", config=self.config)
+        self.tasks_runner = TaskRunner(tasks=self.tasks)
         self.segmentation = Segmentation(config=self.config)
     
-    def execute(self, cv_image, data:dict):
+    def run(self, cv_image, data:dict):
         try:
             logging.info(data)
             h0, w0, _ = cv_image.shape
@@ -43,16 +43,13 @@ class Processor:
             )
 
             detections, unique_detection = self.segmentation.register(detections=detections)
-
-            annotator = self.draw(cv_image, detections, roi, filtered_regions, data) 
-            self.draw(annotator.im.data, unique_detection, None, [], data,color=(0, 0, 255))
-
             message = {
                 "detections": detections.to_dict(),
                 "roi": roi,
                 "width": w0,
                 "height": h0,
                 "filterd_regions": filtered_regions,
+                "object-length-thresholds": self.config.get("object-length-thresholds"),
                 **data,
             }
 
@@ -64,36 +61,7 @@ class Processor:
             logging.error(f"Error while executing detections in segments: {err}")
 
     @property
-    def tasks(self):
+    def tasks(self) -> Dict:
         return {
             "publish-to-kafka": self.kafka_publisher.publish
         }
-    
-    def draw(self, cv_image, detections, roi, filtered_regions, data, color:tuple = (0, 255, 0)):
-        annotator = Annotator(im=cv_image.copy(), line_width=2)
-        for i, box in enumerate(detections.xyxy):
-            # txt_label = f"{detections.confidence[i]:.2f}"
-            # txt_label += f"| {detections.object_length[i]:.2f}" if detections.object_length is not None else ''
-            txt_label = f"| {detections.tracker_id[i]}" if detections.tracker_id is not None else ''
-            annotator.box_label(
-                box=box,
-                label=txt_label,
-                color=color
-            )
-
-        if roi:
-            annotator.draw_mask(
-                cnt=[np.array(roi)],
-                alpha=0.2
-            )
-
-        for det in filtered_regions:
-            xyxy = xyxyn2xyxy(det["det"], cv_image.shape)
-            annotator.box_label(
-                box=xyxy,
-                label=f"{det['filter_type']}"
-            )
-
-        os.makedirs("/media/snapshots", exist_ok=True)
-        cv2.imwrite(f"/media/snapshots/{os.path.basename(data['filename'])}", annotator.im.data)
-        return annotator
