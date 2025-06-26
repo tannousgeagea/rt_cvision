@@ -205,6 +205,97 @@ class Annotator(Colors):
             p1 = (p1[0], p1[1] + h + 10)
 
 
+    def legend_v2(
+        self,
+        img,
+        labels=('0 - 50 cm', '50 - 100 cm', '> 100 cm'),
+        line_width=None,
+        color=((0, 255, 0), (0, 255, 255), (0, 0, 255)),
+        txt_color=None,
+    ):
+        """
+        Add a scalable legend box to an image for visualizing object size categories.
+
+        All layout parameters are dynamically derived from line_width.
+
+        Args:
+            img (np.ndarray): Image to annotate.
+            labels (tuple): Category labels for legend.
+            line_width (int, optional): Drawing line width.
+            color (tuple): BGR color for each label.
+            txt_color (tuple, optional): Text color, auto-set if None.
+
+        Returns:
+            None (modifies image in-place).
+        """
+        line_width = line_width or getattr(self, "lw", 2)
+
+        # === Dynamic Scaling Factors ===
+        font_scale = line_width / 4.5
+        font_thickness = max(line_width - 1, 1)
+        spacing = int(line_width * 2.5)            # vertical space between entries
+        color_box_width = int(line_width * 8)      # width of color box
+        color_box_pad = int(line_width * 1.2)      # padding between color box and text
+        text_pad = int(line_width * 2)             # horizontal padding inside bg box
+        outer_pad = int(line_width * 4)            # outer padding for the bg box
+        font = cv2.FONT_HERSHEY_SIMPLEX
+
+        # === Compute text dimensions ===
+        sizes = [cv2.getTextSize(label, font, font_scale, font_thickness)[0] for label in labels]
+        max_text_width = max(w for w, _ in sizes)
+        text_height = max(h for _, h in sizes)
+
+        entry_height = text_height + spacing
+        total_height = entry_height * len(labels)
+        total_width = color_box_width + color_box_pad + max_text_width + 2 * text_pad
+
+        # === Positioning ===
+        height, width = img.shape[:2]
+        x0 = width - total_width - outer_pad
+        y0 = height - total_height - outer_pad
+
+        # === Background Box ===
+        cv2.rectangle(
+            img,
+            (x0 - text_pad, y0 - text_pad),
+            (x0 + total_width + text_pad, y0 + total_height + text_pad),
+            (255, 255, 255),
+            -1,
+        )
+
+        # === Draw Each Entry ===
+        for i, label in enumerate(labels):
+            y = y0 + i * entry_height
+            # Color box
+            cv2.rectangle(
+                img,
+                (x0, y),
+                (x0 + color_box_width, y + text_height + 4),
+                color[i],
+                -1
+            )
+
+            # Auto text color if not provided
+            if txt_color is None:
+                brightness = np.mean(color[i])
+                tc = (0, 0, 0) if brightness > 128 else (255, 255, 255)
+            else:
+                tc = txt_color
+
+            # Label text
+            cv2.putText(
+                img,
+                label,
+                (x0 + color_box_width + color_box_pad, y + text_height),
+                font,
+                font_scale,
+                tc,
+                thickness=font_thickness,
+                lineType=cv2.LINE_AA
+            )
+
+
+
     def add_legend(self, legend_text, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=None, font_thickness=None, legend_color=(255, 255, 255), pos='buttom-left'):
 
         # Get the size of the legend text

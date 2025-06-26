@@ -18,7 +18,7 @@ class BoxAnnotator:
         self.show_filtered_regions = self.config.get('show_filterd_regions')
         self.show_legend = self.config.get('show_legend')
         self.show_timestamp = self.config.get('show_timestamp')
-        self.line_width = self.config.get('line_wdith', None)
+        self.line_width = self.config.get('line_width', None)
         self.timezone_str = get_location_and_timezone()
 
     def generate_random_rgb_vectorized(self, n=1):
@@ -69,7 +69,7 @@ class BoxAnnotator:
             )
 
         if self.show_legend and data.get('legend'):
-            annotator.legend(annotator.im.data,
+            annotator.legend_v2(annotator.im.data,
                 labels=data.get('legend'),
                 color=colors,
                 line_width=self.line_width,

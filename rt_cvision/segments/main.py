@@ -39,12 +39,13 @@ class Processor:
                 confidence_threshold=self.config.get("confidence_threshold", 0.25)
             )
             detections = self.object_size_est.execute(
-                detections=detections, input_shape=cv_image.shape, correction_factor=0.0038
+                detections=detections, input_shape=cv_image.shape, correction_factor=self.config.get("correction_factor", 0.003)
             )
 
-            detections, unique_detection = self.segmentation.register(detections=detections)
+            detections, unique_detections = self.segmentation.register(detections=detections)
             message = {
                 "detections": detections.to_dict(),
+                "unique_detections": unique_detections.to_dict(),
                 "roi": roi,
                 "width": w0,
                 "height": h0,
