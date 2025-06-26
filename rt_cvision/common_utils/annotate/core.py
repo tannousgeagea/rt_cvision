@@ -157,7 +157,7 @@ class Annotator(Colors):
     def legend(self, 
         img, 
         labels=['0 - 50 cm', '50 - 100 cm', '> 100 cm'], 
-        line_width=3, 
+        line_width=None, 
         color=((0, 255, 0), (0, 255, 255), (0, 0, 255)), 
         txt_color=None
         ):
@@ -178,7 +178,7 @@ class Annotator(Colors):
         Returns:
             None: The function modifies the input image by adding the legend.
         """
-
+        line_width = line_width or self.lw
         tf = max(line_width - 1, 1)
         size = np.array([cv2.getTextSize(l, 0, fontScale=line_width / 4, thickness=tf)[0] for l in labels])
         w, h = np.max(size, axis=0)
@@ -205,10 +205,12 @@ class Annotator(Colors):
             p1 = (p1[0], p1[1] + h + 10)
 
 
-    def add_legend(self, legend_text, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=2, font_thickness=3, legend_color=(255, 255, 255), pos='buttom-left'):
+    def add_legend(self, legend_text, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=None, font_thickness=None, legend_color=(255, 255, 255), pos='buttom-left'):
 
         # Get the size of the legend text
-        text_size = cv2.getTextSize(legend_text, font, font_scale, font_thickness)[0]
+        font_scale = font_scale or self.lw / 3
+        tf = font_thickness or max(self.lw - 1, 1)
+        text_size = cv2.getTextSize(legend_text, font, font_scale, tf)[0]
         position = (5, self.im.data.shape[0] - 5)
 
         # Calculate the position for the legend at the left bottom of the image
@@ -225,7 +227,7 @@ class Annotator(Colors):
 
         # Put the legend text on the image
         cv2.putText(self.im.data, legend_text, (position[0] + 5, position[1] - 5),
-                    font, font_scale, (0, 0, 0), font_thickness)
+                    font, font_scale, (0, 0, 0), tf)
 
 
 

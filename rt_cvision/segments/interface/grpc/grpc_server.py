@@ -35,6 +35,8 @@ class ServiceImpl(waste_segments_service_pb2_grpc.ComputingUnitServicer):
         img_key = data.get('img_key', 'None')
         status, retrieved_image = redis_manager.retrieve_image(key=img_key)
         
+
+        logging.info(f"Retrieved Image: {retrieved_image.shape}")
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         

@@ -18,7 +18,7 @@ class BoxAnnotator:
         self.show_filtered_regions = self.config.get('show_filterd_regions')
         self.show_legend = self.config.get('show_legend')
         self.show_timestamp = self.config.get('show_timestamp')
-        self.line_width = self.config.get('line_wdith', 3)
+        self.line_width = self.config.get('line_wdith', None)
         self.timezone_str = get_location_and_timezone()
 
     def generate_random_rgb_vectorized(self, n=1):
@@ -54,11 +54,11 @@ class BoxAnnotator:
         for detection_idx in range(len(detections)):
             label = ""
             if self.show_class_label and not detections.data is None and 'class_name' in detections.data:
-                label += f"{detections.data['class_name'][detection_idx]}"
+                label += f"{detections.data['class_name'][detection_idx]} "
             if self.show_object_size and not detections.object_length is None:
-                label += f" [{detections.object_length[detection_idx] * 100:.1f} cm]"
+                label += f"[{detections.object_length[detection_idx] * 100:.1f} cm] "
             if self.show_tracker_id and not detections.tracker_id is None:
-                label += f" - {detections.tracker_id[detection_idx].astype(int)}"
+                label += f"{detections.tracker_id[detection_idx].astype(int)}"
             x1, y1, x2, y2 = detections.xyxy[detection_idx].astype(int)
             color = colors[severity[detection_idx]]
             
@@ -78,10 +78,11 @@ class BoxAnnotator:
         if self.show_timestamp:
             annotator.add_legend(
                 legend_text=convert_to_local_time(utc_time=datetime.now(), timezone_str=self.timezone_str).strftime(DATETIME_FORMAT),
-                font_scale=2,
-                font_thickness=2
             )
 
+
+        # import cv2
+        # cv2.imwrite("/media/snapshots/test.jpg", annotator.im.data)
         return annotator.im.data
         
             

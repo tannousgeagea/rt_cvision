@@ -4,6 +4,7 @@ import json
 import sys
 import uuid
 
+import logging
 from data_reader.interface.grpc import service_pb2
 from data_reader.interface.grpc import service_pb2_grpc
 from common_utils.services.redis_manager import RedisManager
@@ -11,8 +12,8 @@ from common_utils.services.redis_manager import RedisManager
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
+    port=int(os.environ['REDIS_PORT']),
+    db=int(os.environ['REDIS_DB']),
     password=os.environ['REDIS_PASSWORD'],
 )
 
@@ -31,7 +32,7 @@ def run(payload):
             cv_image = payload['cv_image']
             timestamp = payload['timestamp']
             signal = {key: value for key, value in payload.items() if key!='cv_image'}
-            img_key = str(timestamp)
+            img_key = str(uuid.uuid4())
             status, img_key = redis_manager.handle_storage(cv_image, key=img_key, expire=int(os.environ.get('REDIS_EXPIRE', 5)))
             
             if not status:
