@@ -4,7 +4,7 @@ import logging
 from typing import Dict
 from configure.client import ServiceConfigClient
 from common_utils.annotate.color import Color
-from visualizes.utils.draw.core import BoxAnnotator
+from common_utils.draw.core import BoxAnnotator
 from visualizes.tasks.publish.core import ImagePublisher, run as run_ros2
 from visualizes.tasks.core import TaskRunner
 
@@ -39,7 +39,7 @@ class Processor:
                         labels.append(f"{threshold['min']} - {threshold['max']}")
                     else:
                         labels.append(f" > {threshold['min']}")
-                    colors.append(Color.from_hex(threshold['color']).as_rgb())
+                    colors.append(Color.from_hex(threshold['color']).as_bgr())
                     thresholds.append(threshold['min'])
 
             message = {

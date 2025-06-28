@@ -121,6 +121,8 @@ def enrich_segments_with_detections(
                             enriched_segments.data[key][seg_i] = array[det_i]
                         if isinstance(enriched_segments.data[key][seg_i], list):
                             enriched_segments.data[key][seg_i] += array[det_i]
+                        else:
+                            enriched_segments.data[key][seg_i] = array[det_i]
                     elif isinstance(enriched_segments.data[key], np.ndarray):
                         enriched_segments.data[key][seg_i] = array[det_i]
                         

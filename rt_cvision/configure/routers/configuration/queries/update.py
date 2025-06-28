@@ -63,7 +63,7 @@ def update_configuration(request: ApiRequest = Body(...)):
 
     for change in request.changes:
         try:
-            service = Service.objects.get(service_name=request.serviceId)
+            service = Service.objects.get(service_id=request.serviceId)
         except Service.DoesNotExist:
             responses.append(ConfigChangeResponse(
                 serviceId=request.serviceId,

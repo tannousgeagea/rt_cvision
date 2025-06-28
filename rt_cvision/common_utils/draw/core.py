@@ -6,6 +6,8 @@ from datetime import datetime
 from common_utils.detection.core import Detections
 from common_utils.annotate.core import Annotator
 from common_utils import DATETIME_FORMAT
+from common_utils.annotate.color import Color
+from common_utils.detection.convertor import xyxyn2xyxy, poly2xyxy
 from common_utils.severity.utils import SEVERITY_LEVEL_MAP_BY_SIZE_vectorized
 from common_utils.timezone_utils.timeloc  import get_location_and_timezone, convert_to_local_time
 
@@ -13,6 +15,8 @@ class BoxAnnotator:
     def __init__(self, config:dict):
         self.config = config
         self.show_class_label = self.config.get('show_class_label')
+        self.show_attributes = self.config.get("show_attributes")
+        self.show_context = self.config.get("show_context")
         self.show_object_size = self.config.get('show_object_size')
         self.show_roi = self.config.get('show_roi')
         self.show_tracker_id = self.config.get('show_tracker_id')
@@ -58,6 +62,10 @@ class BoxAnnotator:
             label = ""
             if self.show_class_label and not detections.data is None and 'class_name' in detections.data:
                 label += f"{detections.data['class_name'][detection_idx]} "
+            if self.show_attributes and not detections.data is None and 'attributes' in detections.data and detections.data['attributes'][detection_idx]:
+                label += f"{detections.data['attributes'][detection_idx]} "
+            if self.show_context and not detections.data is None and 'context' in detections.data and detections.data['context'][detection_idx]:
+                label += f"{detections.data['context'][detection_idx]['impurity_type']} "
             if self.show_object_size and not detections.object_length is None:
                 label += f"[{detections.object_length[detection_idx] * 100:.1f} cm] "
             if self.show_tracker_id and not detections.tracker_id is None:
@@ -71,6 +79,20 @@ class BoxAnnotator:
                 color=color
             )
 
+        if self.show_filtered_regions and "filtered_regions" in data:
+            for filtered_region in data['filtered_regions']:
+                annotator.box_label(
+                    box=xyxyn2xyxy(filtered_region['det'], image_shape=cv_image.shape),
+                    label=f"{filtered_region['filter_type']}",
+                    color=self.generate_random_rgb_vectorized(n=1)[0]
+                )
+
+        if self.show_roi and 'roi' in data and data['roi']:
+            annotator.draw_enclosing_transparent_circle(
+                box=poly2xyxy(data['roi']), 
+                color=Color.GREEN.as_bgr(), 
+                alpha=0.2)
+
         if self.show_legend and data.get('legend'):
             annotator.legend_v2(annotator.im.data,
                 labels=data.get('legend'),
@@ -83,9 +105,6 @@ class BoxAnnotator:
                 legend_text=convert_to_local_time(utc_time=datetime.now(), timezone_str=self.timezone_str).strftime(DATETIME_FORMAT),
             )
 
-
-        # import cv2
-        # cv2.imwrite("/media/snapshots/test.jpg", annotator.im.data)
         return annotator.im.data
         
             

@@ -10,6 +10,9 @@ from datetime import datetime
 from typing import Dict, List, Optional, cast, Tuple
 from common_utils.ml_models import load_inference_module
 from common_utils.detection.core import Detections
+from common_utils.policy.core import ImpurityClassifier
+from common_utils.duplicate_tracker.core import DuplicateTracker
+from common_utils.policy.utils import IMPURITY_RULES, map_attributes
 from common_utils.detection.assign import enrich_segments_with_detections
 
 device = "gpu" if torch.cuda.is_available() else "cpu"
@@ -24,17 +27,27 @@ class DetectionModel:
         if not self.detections_models:
             raise ValueError(f"detection_models is required !")
         
-        self.models = {}
+        self.classifier = ImpurityClassifier(rules=IMPURITY_RULES)
+        self.tracker = DuplicateTracker(buffer_size=10, iou_threshold=0.5, expiry_minutes=10)
+        self.models = []
         for det_config in self.detections_models:
+            if not det_config.get('active', True):
+                continue
+
             det_name = det_config['name']
             model_cls = load_inference_module(
                 config=det_config
             )
-
-            self.models[det_name] = model_cls(
-                weights=det_config["weights"],
-                device=det_config.get("device") or device,
-                config=det_config,
+            self.models.append(
+                {
+                    "name": det_name,
+                    "mapping": det_config.get("mapping"),
+                    "model": model_cls(
+                        weights=det_config["weights"],
+                        device=det_config.get("device") or device,
+                        config=det_config,
+                    ),
+                }
             )
 
     def infer(self, model, image: np.ndarray, confidence_threshold:Optional[float] = 0.25):
@@ -42,7 +55,53 @@ class DetectionModel:
             return model.predict(image, confidence_threshold)
         else:
             return model.track(image, confidence_threshold)
+    
+    def attribues(self, det_model:Dict, detections:Detections):
+        if not det_model.get("mapping"):
+            detections.data.update(
+                {
+                    "attributes": [[f"{det_model['type']}:{str(class_name).lower()}"] for class_name in detections.data["class_name"]]
+                }
+            )
+        else:
+            detections.data.update(
+                {
+                    "attributes": [[f"{det_model['mapping'][cls_id]}"] for cls_id in detections.class_id.astype(int)]
+                }
+            )
+
+        return detections
+    
+    def classify(self, detections:Detections):
+        outputs = []
+        for i in range(len(detections)):
+            attrs = detections.data['attributes'][i]
+            attrs_dict = map_attributes(attrs)
+            outputs.append(self.classifier.classify(
+                attributes=attrs_dict,
+            ))
         
+        detections.data.update({"context": outputs})
+
+        return detections
+
+    def check_duplicate(self, detections:Detections):
+        try:
+            unique_indices = []
+            for detection_idx, xyxy in enumerate(detections.xyxyn):
+                temp_det = {"bbox": xyxy, "timestamp": time.time()}
+                if self.tracker.add_detection(temp_det):
+                    logging.info(f"[Detection Model] Detection {detection_idx} is unique and added to the buffer.")
+                    unique_indices.append(detection_idx)
+                else:
+                    logging.info(f"[Detection Model] Detection {detection_idx} is a duplicate.")
+            
+            detections = cast(Detections, detections[unique_indices])
+        except Exception as err:
+            logging.error(f'[Detection Model] Unexpected Error while checking duplicate: {err}')
+        
+        return detections
+
     def run(self, image:np.ndarray, segments:Detections, confidence_threshold:Optional[float] = 0.25):
         try:
             enriched_segments = segments
@@ -50,17 +109,19 @@ class DetectionModel:
             assert self.models, f'No Models is provided'
 
             start_time = time.time()
-            for model_name, det_model in self.models.items():
-                detections = self.infer(model=det_model, image=image, confidence_threshold=confidence_threshold)
+            for det_model in self.models:
+                model = det_model['model']
+                detections = self.infer(model=model, image=image, confidence_threshold=confidence_threshold)
                 detections = detections.with_nms()
                 detections.object_length = np.zeros(len(detections))
                 detections.object_area = detections.box_area
-                logging.info(f"[Detection Model] {model_name}: {len(detections)} instances")
+                detections = self.attribues(det_model, detections)
+                logging.info(f"[Detection Model] {det_model['name']}: {len(detections)} instances")
 
                 enriched_segments = enrich_segments_with_detections(
                     segments=enriched_segments, detections=detections, iou_threshold=0.4, confidence_threshold=0.7
                     )
-                
+            
             logging.info(f"[Detection Model] Total Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
 
             torch.cuda.empty_cache()

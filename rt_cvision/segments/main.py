@@ -49,7 +49,7 @@ class Processor:
                 "roi": roi,
                 "width": w0,
                 "height": h0,
-                "filterd_regions": filtered_regions,
+                "filtered_regions": filtered_regions,
                 "object-length-thresholds": self.config.get("object-length-thresholds"),
                 **data,
             }

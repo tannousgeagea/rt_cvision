@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Generic, TypeVar, Callable, Optional, Any
 
 import matplotlib.pyplot as plt
 
@@ -50,6 +50,43 @@ LEGACY_COLOR_PALETTE = [
 ]
 
 WASTEANT_COLOR_PALETTE = ["C28DFC", "A351FB", "8315F9", "6706CE", "5905B3", "4D049A"]
+T = TypeVar("T")
+
+class classproperty(Generic[T]):
+    """
+    A decorator that combines @classmethod and @property.
+    It allows a method to be accessed as a property of the class,
+    rather than an instance, similar to a classmethod.
+
+    Usage:
+        @classproperty
+        def my_method(cls):
+            ...
+    """
+
+    def __init__(self, fget: Callable[..., T]):
+        """
+        Args:
+            The function that is called when the property is accessed.
+        """
+        self.fget = fget
+
+    def __get__(self, owner_self: Any, owner_cls: Optional[type] = None) -> T:
+        """
+        Override the __get__ method to return the result of the function call.
+
+        Args:
+            owner_self: The instance through which the attribute was accessed, or None.
+                Irrelevant for class properties.
+            owner_cls: The class through which the attribute was accessed.
+
+        Returns:
+            The result of calling the function stored in 'fget' with 'owner_cls'.
+        """
+        if self.fget is None:
+            raise AttributeError("unreadable attribute")
+        return self.fget(owner_cls)
+
 
 def _validate_color_hex(color_hex: str):
     color_hex = color_hex.lstrip("#")
@@ -221,35 +258,35 @@ class Color:
         """
         return self.b, self.g, self.r
 
-    @property
-    def WHITE(cls) -> Color:
+    @classproperty
+    def WHITE(cls) -> 'Color':
         return Color.from_hex("#FFFFFF")
 
-    @property
+    @classproperty
     def BLACK(cls) -> Color:
         return Color.from_hex("#000000")
 
-    @property
+    @classproperty
     def GREY(cls) -> Color:
         return Color.from_hex("#808080")
 
-    @property
+    @classproperty
     def RED(cls) -> Color:
         return Color.from_hex("#FF0000")
 
-    @property
+    @classproperty
     def GREEN(cls) -> Color:
         return Color.from_hex("#00FF00")
 
-    @property
+    @classproperty
     def BLUE(cls) -> Color:
         return Color.from_hex("#0000FF")
 
-    @property
+    @classproperty
     def YELLOW(cls) -> Color:
         return Color.from_hex("#FFFF00")
 
-    @property
+    @classproperty
     def ROBOFLOW(cls) -> Color:
         return Color.from_hex("#A351FB")
 

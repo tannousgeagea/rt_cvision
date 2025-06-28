@@ -138,6 +138,27 @@ class Annotator(Colors):
             except Exception as err:
                 logging.error('Error when drawing bbxes: %s' %err)
 
+    def draw_enclosing_transparent_circle(self, box, color=(0, 255, 255), alpha=0.5):
+        """
+        Draw a transparent circle centered at the box center,
+        large enough to enclose the entire bounding box.
+        
+        Args:
+            img (np.ndarray): Input image.
+            box (tuple): (x1, y1, x2, y2) - bounding box coordinates.
+            color (tuple): BGR color for the overlay circle.
+            alpha (float): Transparency level (0.0 to 1.0).
+        """
+        x1, y1, x2, y2 = box
+        cx = int((x1 + x2) / 2)
+        cy = int((y1 + y2) / 2)
+        width = x2 - x1
+        height = y2 - y1
+        radius = int(np.sqrt(width**2 + height**2) / 2)
+        overlay = self.im.data.copy()
+        cv2.circle(overlay, (cx, cy), radius, color, thickness=-1)
+        self.im.data = cv2.addWeighted(overlay, alpha, self.im.data, 1 - alpha, 0, dst=self.im.data)
+
     def class_label(self, label='', txt_color=None, cls_id=0, color=None):
         color = color if color is not None else tuple(self.colors[cls_id].tolist())
         p1 = (0, 0)
@@ -275,13 +296,7 @@ class Annotator(Colors):
                 -1
             )
 
-            # Auto text color if not provided
-            if txt_color is None:
-                brightness = np.mean(color[i])
-                tc = (0, 0, 0) if brightness > 128 else (255, 255, 255)
-            else:
-                tc = txt_color
-
+            tc = txt_color or (0, 0, 0)
             # Label text
             cv2.putText(
                 img,
