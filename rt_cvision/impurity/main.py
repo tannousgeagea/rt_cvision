@@ -15,6 +15,7 @@ from common_utils.annotate.color import Color
 from common_utils.draw.core import BoxAnnotator
 from impurity.tasks.publish.core import ImagePublisher, run as ros2_run
 from common_utils.severity.utils import SEVERITY_LEVEL_MAP_BY_CLASS_vectorized
+from impurity.utils.database.core import DatabaseManager
 
 class Processor:
     def __init__(self) -> None:
@@ -25,11 +26,13 @@ class Processor:
         )
 
         self.config = self.config_client.load()
+        self.config["tenant"] = self.config_client.get_tenant_context()
         logging.info("Parameters:")
         logging.info("---------------------")
         for key, value in self.config.items():
             logging.info(f"\t {key}: {value}")
 
+        self.db_manager = DatabaseManager(self.config)
         self.tasks_runner = TaskRunner(self.tasks)
 
         rclpy.init()
@@ -66,14 +69,14 @@ class Processor:
                 segments=unique_segments, image=cv_image, confidence_threshold=self.config.get("confidence_threshold", 0.25)
             )
             logging.info(f"[Impurity] Enriched Segments: {len(detections)}")
-
-            # detections = self.detection_models.check_duplicate(detections)
-            detections = self.detection_models.classify(detections=detections)
+            detections = self.detection_models.check_duplicate(detections)
+            detections, pdetections = self.detection_models.classify(detections=detections)
             severity = SEVERITY_LEVEL_MAP_BY_CLASS_vectorized(classes=detections.class_id, thresholds=[1, 2, 3])
             logging.info(f"[Impurity] Severity {severity}")
             logging.info(f"[Impurity] Classes: {detections.data['class_name']}")
             logging.info(f"[Impurity] Attributes: {detections.data.get('attributes')}")
             logging.info(f"[Impurity] Context: {detections.data['context']}")
+            logging.info(f"[Impurity] {len(detections)} detections vs {len(pdetections)} problematic detections")
 
             message = {
                 "cv_image": cv_image.copy(),
@@ -82,6 +85,7 @@ class Processor:
                 "legend": labels,
                 "severity": severity.tolist(),
                 "detections": detections.to_dict(),
+                "pdetections": pdetections.to_dict(),
                 **self.config,
                 "image_publisher": self.ipublisher,
             }
@@ -90,7 +94,10 @@ class Processor:
             message["annotated_image"] = image
 
             self.tasks_runner.run(
-                tasks=["publish-ros2"],
+                tasks=[
+                    "save-detections", 
+                    "publish-ros2"
+                ],
                 parameters=message,
             )
             
@@ -100,5 +107,6 @@ class Processor:
     @property
     def tasks(self) -> Dict:
         return {
+            "save-detections": self.db_manager.save,
             "publish-ros2": ros2_run
         }

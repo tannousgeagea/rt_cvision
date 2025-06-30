@@ -1,10 +1,13 @@
 from django.db import models
+from metadata.models import Tag
 from data_reader.models import (
     Image
 )
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 class Impurity(models.Model):
-    image = models.ForeignKey(Image, on_delete=models.RESTRICT, related_name='image')
+    image = models.ForeignKey(Image, on_delete=models.RESTRICT, related_name='impurities')
     object_uid = models.CharField(max_length=255)
     timestamp = models.DateTimeField()
     confidence_score = models.FloatField()
@@ -13,6 +16,14 @@ class Impurity(models.Model):
     object_coordinates = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_processed = models.BooleanField(default=False)
+    meta_info = models.JSONField(null=True, blank=True)
+    tags = models.ManyToManyField(
+        Tag,
+        through='ImpurityTag',
+        related_name='impurities',
+        blank=True
+    )
+
     class Meta:
         db_table = 'impurity'
         verbose_name_plural = 'Impurities'
@@ -23,6 +34,30 @@ class Impurity(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         
+class ImpurityTag(models.Model):
+    impurity = models.ForeignKey(Impurity, on_delete=models.CASCADE, related_name='impurity_tags')
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='tagged_impurities')
+    tagged_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    tagged_at = models.DateTimeField(auto_now_add=True)
+    source = models.CharField(
+        max_length=50,
+        choices=[('auto', 'Auto'), ('human', 'Human'), ('model', 'Model')],
+        default='auto'
+    )
+    confidence = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('impurity', 'tag')
+        db_table = 'impurity_tag'
+        verbose_name_plural = 'Impurity Tags'
+        indexes = [
+            models.Index(fields=['tag']),
+            models.Index(fields=['impurity']),
+        ]
+
+    def __str__(self):
+        return f"{self.impurity.object_uid} - {self.tag.name}"
+
 class ImpurityTask(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.CharField(max_length=255, null=True, blank=True)

@@ -289,6 +289,33 @@ UNFOLD = {
                 ]
             },
             {
+                "title": _("Metadata"),
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Language"),
+                        "icon": "language",
+                        "link": reverse_lazy(
+                            "admin:metadata_language_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Tag Groups"),
+                        "icon": "language",
+                        "link": reverse_lazy(
+                            "admin:metadata_taggroup_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Tags"),
+                        "icon": "language",
+                        "link": reverse_lazy(
+                            "admin:metadata_tag_changelist"
+                        ),
+                    },
+                ]
+            },
+            {
                 "title": _("Data"),
                 "collapsible": True,
                 "items": [

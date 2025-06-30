@@ -17,6 +17,7 @@ from configure.routers.configuration import endpoint
 from configure.routers import tenant
 from configure.routers import data_acquisition
 from configure.routers import logs
+from configure.routers import images
 
 def create_app() -> FastAPI:
     tags_meta = [
@@ -40,7 +41,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json"
     )
 
-    origins = ["http//10.7.0.6:23085", "http://localhost:3001"]
+    origins = ["http//10.7.0.6:23085", "http://localhost:3001", "http://server2.learning.test.want:8080", "http://server2.learning.test.want:23085"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(logs.endpoint.router)
     app.include_router(tenant.endpoint.router)
     app.include_router(data_acquisition.endpoint.router)
+    app.include_router(images.endpoint.router)
     
     return app
 

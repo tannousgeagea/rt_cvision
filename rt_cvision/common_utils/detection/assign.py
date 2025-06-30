@@ -103,13 +103,13 @@ def enrich_segments_with_detections(
 
         if len(detection_idx) > 0:
             for seg_i, det_i in zip(segment_idx, detection_idx):
-                for key in ["confidence", "class_id", "object_length", "object_area", "uid"]:
+                for key in ["confidence", "class_id", "object_length", "object_area"]:
                     segment_value = getattr(enriched_segments, key)
                     detection_value = getattr(detections, key)
 
                     if segment_value is not None and detection_value is not None:
                         segment_value[seg_i] = detection_value[det_i] or segment_value[seg_i]
-
+                            
         if hasattr(detections, "data") and isinstance(detections.data, dict):
             for key, array in detections.data.items():
                 if key not in enriched_segments.data:

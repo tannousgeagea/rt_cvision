@@ -1,3 +1,4 @@
 
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATETIME_FORMAT_IN_FILENAME = "%Y_%m_%d_%H_%M_%S"

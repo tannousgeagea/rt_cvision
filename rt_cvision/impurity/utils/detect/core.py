@@ -74,16 +74,21 @@ class DetectionModel:
     
     def classify(self, detections:Detections):
         outputs = []
+        indexes = []
         for i in range(len(detections)):
             attrs = detections.data['attributes'][i]
             attrs_dict = map_attributes(attrs)
-            outputs.append(self.classifier.classify(
+            context = self.classifier.classify(
                 attributes=attrs_dict,
-            ))
+            )
+            outputs.append(context)
+
+            if "impurity_type" in context and context['impurity_type']:
+                indexes.append(i)
         
         detections.data.update({"context": outputs})
 
-        return detections
+        return detections, cast(Detections, detections[indexes])
 
     def check_duplicate(self, detections:Detections):
         try:
@@ -115,6 +120,7 @@ class DetectionModel:
                 detections = detections.with_nms()
                 detections.object_length = np.zeros(len(detections))
                 detections.object_area = detections.box_area
+                detections.uid = np.array([str(uuid.uuid4()) for _ in range(len(detections))])
                 detections = self.attribues(det_model, detections)
                 logging.info(f"[Detection Model] {det_model['name']}: {len(detections)} instances")
 

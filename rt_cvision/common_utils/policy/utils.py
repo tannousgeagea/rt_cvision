@@ -75,6 +75,7 @@ IMPURITY_RULES = [
     {
         "label": "Low Risk",
         "conditions":[
+            ["predicted_severity:low"],
             ["predicted_severity:low", "manmade"],
             ["predicted_severity:low", "fractured"]
         ],
