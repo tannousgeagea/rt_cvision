@@ -231,7 +231,7 @@ class Detections:
         assert isinstance(results, dict), f'results are expected to be of type dict, but got {type(results)}'
         raw_data = results.get("data", {})
         parsed_data = {
-            k: np.array(v, dtype=object) if isinstance(v, list) and v and isinstance(v[0], (int, float, list)) else v
+            k: v
             for k, v in raw_data.items()
         }
         return Detections(

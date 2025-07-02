@@ -38,7 +38,7 @@ class Segmentation:
 
         self.map_tracker_id_2_object_uid = {}
         self.config = config
-        self.activate_tracking = config.get("activate_tracking", False)
+        self.activate_tracking = config.get("activate-tracking", False)
         self.model_cls = load_inference_module(
             config=config
         )
@@ -151,6 +151,18 @@ class Segmentation:
             logging.exception("Unexpected error during detection registration:")
             raise
     
+    def classify(self, detections:Detections):
+        object_length_threshold = self.config['object-length-thresholds']
+        if not object_length_threshold:
+            return detections
+        long_threshold = object_length_threshold[-1]['min']
+        object_lengths = np.array(detections.object_length)
+        is_long = object_lengths >= long_threshold
+        attributes = [["long"] if val else ["short"] for val in is_long]
+        detections.data["attributes"] = attributes
+        return detections
+
+
     def run(self, image:np.ndarray, confidence_threshold:Optional[float] = 0.25):
         try:
             if not is_within_active_time(

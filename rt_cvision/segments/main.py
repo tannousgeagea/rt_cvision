@@ -42,6 +42,7 @@ class Processor:
                 detections=detections, input_shape=cv_image.shape, correction_factor=self.config.get("correction_factor", 0.003)
             )
 
+            detections = self.segmentation.classify(detections=detections)
             detections, unique_detections = self.segmentation.register(detections=detections)
             message = {
                 "detections": detections.to_dict(),
