@@ -92,7 +92,7 @@ class Segmentation:
             segmentation_results=detections,
             filter_types=list(self.filter_config.keys()),
         )
-        logging.info(filtered_results)
+        logging.info(f"Filtered: {filtered_results}")
         return cast(Detections, detections[filtered_results]), unwanted_rois
 
     def register(self, detections: Detections) -> Tuple[Detections, Detections]:
