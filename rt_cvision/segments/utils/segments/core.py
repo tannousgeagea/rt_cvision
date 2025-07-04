@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, cast, Tuple
 from common_utils.ml_models import load_inference_module
 from common_utils.detection.core import Detections
 from common_utils.filters.core import FilterEngine
+from common_utils.trackers import SORTTracker
 
 device = "gpu" if torch.cuda.is_available() else "cpu"
 
@@ -49,6 +50,7 @@ class Segmentation:
             config=config,
         )
 
+        self.tracker = SORTTracker()
         self.filter_engine = FilterEngine()
         self.filter_config = self.config.get("filter_config")
         if self.filter_config:
@@ -62,10 +64,11 @@ class Segmentation:
                 )
 
     def infer(self, image: np.ndarray, confidence_threshold:Optional[float] = 0.25):
-        if not self.activate_tracking:
-            return self.model.predict(image, confidence_threshold)
-        else:
-            return self.model.track(image, confidence_threshold)
+        detections = self.model.predict(image, confidence_threshold)
+        if self.activate_tracking:
+            detections = self.tracker.update(detections)
+        
+        return detections
         
     def crop_image(self, image:np.ndarray, roi:Optional[List]):
         if not roi:

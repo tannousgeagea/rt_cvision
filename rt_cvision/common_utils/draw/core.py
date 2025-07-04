@@ -67,7 +67,7 @@ class BoxAnnotator:
             if self.show_context and not detections.data is None and 'context' in detections.data and detections.data['context'][detection_idx]:
                 label += f"{detections.data['context'][detection_idx]['impurity_type']} "
             if self.show_object_size and not detections.object_length is None:
-                label += f"[{detections.object_length[detection_idx] * 100:.1f} cm] "
+                label += f"{detections.object_length[detection_idx] * 100:.1f} cm "
             if self.show_tracker_id and not detections.tracker_id is None:
                 label += f"{detections.tracker_id[detection_idx].astype(int)}"
             x1, y1, x2, y2 = detections.xyxy[detection_idx].astype(int)

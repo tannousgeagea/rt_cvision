@@ -5,7 +5,7 @@ from django.db import models
 TAG_GROUP_MAP = {
     'severity': lambda name: name.startswith("predicted_severity:") or name in ['low', 'medium', 'high'],
     'material': lambda name: name in ["glass", "plastic", "metal", ""],
-    'geometry': lambda name: name in ["rigid", "sharp", "elongated", "manmade", "round", "long_object"],
+    'geometry': lambda name: name in ["rigid", "sharp", "elongated", "manmade", "round", "long_object", "long", "short"],
 }
 
 class Language(models.Model):

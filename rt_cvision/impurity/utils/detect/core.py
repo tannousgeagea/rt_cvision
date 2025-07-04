@@ -28,7 +28,11 @@ class DetectionModel:
             raise ValueError(f"detection_models is required !")
         
         self.classifier = ImpurityClassifier(rules=IMPURITY_RULES)
-        self.tracker = DuplicateTracker(buffer_size=10, iou_threshold=self.config.get('iou-threshold', 0.4), expiry_minutes=10)
+        self.tracker = DuplicateTracker(
+            buffer_size=self.config.get('buffer-size', 1000), 
+            iou_threshold=self.config.get('iou-threshold', 0.4), 
+            expiry_minutes=self.config.get("expiry-time", 10)
+        )
         self.models = []
         for det_config in self.detections_models:
             if not det_config.get('active', True):
