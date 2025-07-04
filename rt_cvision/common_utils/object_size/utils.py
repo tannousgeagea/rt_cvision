@@ -1,6 +1,8 @@
 import cv2
 import logging
 import numpy as np
+from typing import List, Dict, Tuple
+from common_utils.annotate.color import Color
 from scipy.spatial.distance import cdist, pdist
 
 def farthest_points(contour):
@@ -70,3 +72,34 @@ def shrink_contour(contour, input_shape, iterations:int=1):
 
     return success, inner_contour
 
+
+def extract_size_threshold(object_length_threshold: List[Dict]) -> Tuple[List[str], List[Tuple[int, int, int]], List[float]]:
+    labels, colors, thresholds = [], [], []
+    
+    for threshold in object_length_threshold:
+        try:
+            min_val = threshold["min"]
+            max_val = threshold.get("max", None)
+            label = f"{min_val} - {max_val}" if max_val is not None else f"> {min_val}"
+            labels.append(label)
+            thresholds.append(min_val)
+            colors.append(Color.from_hex(threshold["color"]).as_bgr())
+        except Exception as e:
+            logging.warning(f"Skipping invalid threshold entry: {threshold}, Error: {e}")
+    
+    return labels, colors, thresholds
+
+
+def get_size_threshold(object_length_threshold: List[Dict]) -> Tuple[List[str], List[Tuple[int, int, int]], List[float]]:
+    try:
+        return extract_size_threshold(object_length_threshold)
+
+    except Exception as err:
+        logging.error(f"[Size Threshold]: Error in config: {err}. Using fallback thresholds.")
+        fallback_threshold = [
+            {"min": 0,   "max": 0.5, "label": "Small",      "color": "#00ff00"},
+            {"min": 0.5, "max": 1.0, "label": "Medium",     "color": "#ffe933"},
+            {"min": 1.0, "max": 1.5, "label": "Large",      "color": "#ffa833"},
+            {"min": 1.5, "max": None,"label": "Very Large", "color": "#ff3333"},
+        ]
+        return extract_size_threshold(fallback_threshold)

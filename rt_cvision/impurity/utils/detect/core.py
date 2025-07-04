@@ -12,8 +12,10 @@ from common_utils.ml_models import load_inference_module
 from common_utils.detection.core import Detections
 from common_utils.policy.core import ImpurityClassifier
 from common_utils.duplicate_tracker.core import DuplicateTracker
-from common_utils.policy.utils import IMPURITY_RULES, map_attributes
+from common_utils.policy.utils import map_attributes
+from common_utils.policy.rules import IMPURITY_RULES, DOWNGRADE_RULES
 from common_utils.detection.assign import enrich_segments_with_detections
+from common_utils.roi.utils import _is_within, _get_center
 
 device = "gpu" if torch.cuda.is_available() else "cpu"
 
@@ -27,7 +29,7 @@ class DetectionModel:
         if not self.detections_models:
             raise ValueError(f"detection_models is required !")
         
-        self.classifier = ImpurityClassifier(rules=IMPURITY_RULES)
+        self.classifier = ImpurityClassifier(rules=IMPURITY_RULES, downgrade_rules=DOWNGRADE_RULES)
         self.tracker = DuplicateTracker(
             buffer_size=self.config.get('buffer-size', 1000), 
             iou_threshold=self.config.get('iou-threshold', 0.4), 
@@ -85,13 +87,15 @@ class DetectionModel:
             context = self.classifier.classify(
                 attributes=attrs_dict,
             )
-            outputs.append(context)
 
-            if "impurity_type" in context and context['impurity_type']:
+            if context.impurity_type:
                 indexes.append(i)
+
+            outputs.append(context.to_dict())
         
         detections.data.update({"context": outputs})
 
+        logging.info(detections.data)
         return detections, cast(Detections, detections[indexes])
 
     def check_duplicate(self, detections:Detections):
@@ -111,7 +115,24 @@ class DetectionModel:
         
         return detections
 
-    def run(self, image:np.ndarray, segments:Detections, confidence_threshold:Optional[float] = 0.25):
+    def filter_detections(self, detections: Detections, unwanted_regions: List) -> Detections:
+        if not unwanted_regions:
+            return detections
+        
+        filtered_results = []
+        for i, xyxyn in enumerate(detections.xyxyn):
+            center = _get_center(xyxyn)
+            keep = True
+            for roi in unwanted_regions:
+                if _is_within(center, roi["det"]):
+                    keep = False
+                    break
+            if keep:
+                filtered_results.append(i)
+        
+        return cast(Detections, detections[filtered_results])
+
+    def run(self, image:np.ndarray, segments:Detections, confidence_threshold:Optional[float] = 0.25, data: Dict = {}):
         try:
             enriched_segments = segments
             assert not image is None, f'Image is None'
@@ -126,12 +147,16 @@ class DetectionModel:
                 detections.object_area = detections.box_area
                 detections.uid = np.array([str(uuid.uuid4()) for _ in range(len(detections))])
                 detections = self.attribues(det_model, detections)
-                logging.info(f"[Detection Model] {det_model['name']}: {len(detections)} instances")
+                logging.info(f"[Detection Model] {det_model['name']}: {len(detections)} instances with confidence {detections.confidence}")
 
                 enriched_segments = enrich_segments_with_detections(
                     segments=enriched_segments, detections=detections, iou_threshold=0.4, confidence_threshold=0.7
                     )
             
+            enriched_segments = self.filter_detections(
+                detections=enriched_segments, 
+                unwanted_regions=data.get('filtered_regions', [])
+            )
             logging.info(f"[Detection Model] Total Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
 
             torch.cuda.empty_cache()

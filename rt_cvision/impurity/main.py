@@ -13,6 +13,7 @@ from impurity.utils.detect.core import DetectionModel
 from impurity.tasks.core import TaskRunner
 from common_utils.annotate.color import Color
 from common_utils.draw.core import BoxAnnotator
+from common_utils.object_size.utils import get_size_threshold
 from impurity.tasks.publish.core import ImagePublisher, run as ros2_run
 from common_utils.severity.utils import SEVERITY_LEVEL_MAP_BY_CLASS_vectorized
 from impurity.utils.database.core import DatabaseManager
@@ -45,28 +46,23 @@ class Processor:
         self.box_annotator = BoxAnnotator(config=self.config)
         self.ipublisher = ImagePublisher(config=self.config, topic="/rgb/left/impurity/enriched")
         self.detection_models = DetectionModel(self.config)
+        self.labels, self.colors, self.thresholds = [], [], []
 
     def execute(self, cv_image:np.ndarray, data:Dict, classes=None):
         try:
-            object_length_threshold = data.get("object-length-thresholds")
-            if object_length_threshold:
-                labels, colors, thresholds = [], [], []
-                for threshold in object_length_threshold:
-                    if threshold["max"]:
-                        labels.append(f"{threshold['min']} - {threshold['max']}")
-                    else:
-                        labels.append(f" > {threshold['min']}")
-                    colors.append(Color.from_hex(threshold['color']).as_bgr())
-                    thresholds.append(threshold['min'])
-
+            if not self.labels or self.colors or self.thresholds:
+                self.labels, self.colors, self.thresholds = get_size_threshold(object_length_threshold=data.get('object-length-thresholds', []))
+            
             unique_segments = Detections.from_dict(results=data["unique_detections"])
             logging.info(f"[Impurity] Segments: {len(unique_segments)}")
-            indices = np.where(unique_segments.object_length >= thresholds[1])[0]
-            unique_segments = cast(Detections, unique_segments[indices])
+            if unique_segments.object_length is not None:
+                indices = np.where(unique_segments.object_length >= self.thresholds[1])[0]
+                unique_segments = cast(Detections, unique_segments[indices])
 
             logging.info(f"[Impurity] Potential Segments: {len(unique_segments)}")
             detections = self.detection_models.run(
-                segments=unique_segments, image=cv_image, confidence_threshold=self.config.get("confidence_threshold", 0.25)
+                segments=unique_segments, image=cv_image, 
+                confidence_threshold=self.config.get("confidence_threshold", 0.25), data=data
             )
             logging.info(f"[Impurity] Enriched Segments: {len(detections)}")
             detections = self.detection_models.check_duplicate(detections)
@@ -80,9 +76,9 @@ class Processor:
 
             message = {
                 "cv_image": cv_image.copy(),
-                "thresholds": thresholds,
-                "colors": colors,
-                "legend": labels,
+                "thresholds": self.thresholds,
+                "colors": self.colors,
+                "legend": self.labels,
                 "severity": severity.tolist(),
                 "detections": detections.to_dict(),
                 "pdetections": pdetections.to_dict(),
