@@ -36,10 +36,11 @@ def run(messages):
             response = stub.ProcessData(waste_segments_service_pb2.ProcessDataRequest(data=data))
             response_data = json.loads(response.result)
             
-            exectution_time = time.time() - start_time
-            redis_manager.redis_client.set("ACQUISITION_RATE", int(1 / exectution_time))
+            execution_time = time.time() - start_time
+            safe_time = max(execution_time, 1e-3)
+            redis_manager.redis_client.set("ACQUISITION_RATE", 1.0 / safe_time)
             
-            print(f"Execution Time: {int(exectution_time * 1000)} milliseconds!")
+            print(f"Execution Time: {int(execution_time * 1000)} milliseconds!")
             print("Computing Service responded with updated data:", response_data)
             
     except Exception as err:
