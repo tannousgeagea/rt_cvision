@@ -9,6 +9,7 @@ from common_utils.detection.convertor import xyxyn2xyxy
 from common_utils.annotate.core import Annotator
 from segments.tasks.publish.core import KafkaPublisher
 from segments.tasks.core import TaskRunner
+from common_utils.log import Logger
 
 class Processor:
     def __init__(self) -> None:
@@ -19,11 +20,12 @@ class Processor:
 
         self.config = self.config_client.load()
         self.map_tracker_id_2_object_uid = {}
+        self.logger = Logger(name="Segmentation", level=logging.DEBUG)
 
-        logging.info("Parameters:")
-        logging.info("---------------------")
+        self.logger.info("Parameters:")
+        self.logger.info("---------------------")
         for key, value in self.config.items():
-            logging.info(f"\t {key}: {value}")
+            self.logger.info(f"\t {key}: {value}")
 
         self.object_size_est = ObjectSizeEst()
         self.kafka_publisher = KafkaPublisher(topic_name="cvision-dl-ops-core-waste-segments", config=self.config)
@@ -32,7 +34,6 @@ class Processor:
     
     def run(self, cv_image, data:dict):
         try:
-            logging.info(data)
             h0, w0, _ = cv_image.shape
             detections, filtered_regions, roi = self.segmentation.run(
                 image=cv_image, 
@@ -53,6 +54,7 @@ class Processor:
                 "filtered_regions": filtered_regions,
                 "object-length-thresholds": self.config.get("object-length-thresholds"),
                 **data,
+                **self.config,
             }
 
             self.tasks_runner.run(
@@ -60,7 +62,7 @@ class Processor:
                 parameters=message,
             )
         except Exception as err:
-            logging.error(f"Error while executing detections in segments: {err}")
+            self.logger.error(f"{err}")
 
     @property
     def tasks(self) -> Dict:

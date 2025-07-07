@@ -16,6 +16,8 @@ from common_utils.policy.utils import map_attributes
 from common_utils.policy.rules import IMPURITY_RULES, DOWNGRADE_RULES
 from common_utils.detection.assign import enrich_segments_with_detections
 from common_utils.roi.utils import _is_within, _get_center
+from common_utils.object_size.core import ObjectSizeBase
+
 
 device = "gpu" if torch.cuda.is_available() else "cpu"
 
@@ -29,6 +31,7 @@ class DetectionModel:
         if not self.detections_models:
             raise ValueError(f"detection_models is required !")
         
+        self.object_size_est = ObjectSizeBase()
         self.classifier = ImpurityClassifier(rules=IMPURITY_RULES, downgrade_rules=DOWNGRADE_RULES)
         self.tracker = DuplicateTracker(
             buffer_size=self.config.get('buffer-size', 1000), 
@@ -48,6 +51,7 @@ class DetectionModel:
                 {
                     "name": det_name,
                     "mapping": det_config.get("mapping"),
+                    "confidence_threshold": det_config.get('confidence_threshold', 0.5),
                     "model": model_cls(
                         weights=det_config["weights"],
                         device=det_config.get("device") or device,
@@ -62,25 +66,35 @@ class DetectionModel:
         else:
             return model.track(image, confidence_threshold)
     
-    def attribues(self, det_model:Dict, detections:Detections):
-        if not det_model.get("mapping"):
-            detections.data.update(
-                {
-                    "attributes": [[f"{det_model['type']}:{str(class_name).lower()}"] for class_name in detections.data["class_name"]]
-                }
-            )
+    def attribues(self, det_model:Dict, detections:Detections, object_length_threshold:List[Dict] = []):
+        num_detections = len(detections)
+        if object_length_threshold:
+            long_threshold = object_length_threshold[-1]['min']
+            object_lengths = np.array(detections.object_length)
+            is_long = object_lengths >= long_threshold
         else:
-            detections.data.update(
-                {
-                    "attributes": [[f"{det_model['mapping'][cls_id]}"] for cls_id in detections.class_id.astype(int)]
-                }
-            )
+            is_long = [None] * num_detections
+
+        attrs = []
+        for detection_idx in range(num_detections):
+            cls_id = detections.class_id[detection_idx] if detections.class_id is not None else 0 
+            class_name = detections.data['class_name'][detection_idx]
+            if det_model.get('mapping'):
+                mapped = det_model['mapping'][cls_id]
+            else:
+                mapped = f"{det_model['name']}:{str(class_name).lower()}"
+            
+            attribute = [mapped]
+            if is_long[detection_idx] is not None:
+                attribute.extend(["long"] if is_long[detection_idx] else ["short"])
+            attrs.append(attribute)
+
+        detections.data["attributes"] = attrs
 
         return detections
     
     def classify(self, detections:Detections):
-        outputs = []
-        indexes = []
+        outputs, indexes = [], []
         for i in range(len(detections)):
             attrs = detections.data['attributes'][i]
             attrs_dict = map_attributes(attrs)
@@ -93,9 +107,7 @@ class DetectionModel:
 
             outputs.append(context.to_dict())
         
-        detections.data.update({"context": outputs})
-
-        logging.info(detections.data)
+        detections.data["context"] = outputs
         return detections, cast(Detections, detections[indexes])
 
     def check_duplicate(self, detections:Detections):
@@ -141,16 +153,21 @@ class DetectionModel:
             start_time = time.time()
             for det_model in self.models:
                 model = det_model['model']
-                detections = self.infer(model=model, image=image, confidence_threshold=confidence_threshold)
+                detections = self.infer(model=model, image=image, confidence_threshold=det_model['confidence_threshold'])
                 detections = detections.with_nms()
-                detections.object_length = np.zeros(len(detections))
                 detections.object_area = detections.box_area
+                index, object_length, _ = self.object_size_est.compute_object_length_bbox(
+                    bboxes=detections.xyxyn, input_shape=image.shape, correction_factor=data.get('correction-factor', 0.003)
+                )
+
+                detections = cast(Detections, detections[index])
+                detections.object_length = np.array(object_length)
                 detections.uid = np.array([str(uuid.uuid4()) for _ in range(len(detections))])
-                detections = self.attribues(det_model, detections)
+                detections = self.attribues(det_model, detections, data.get('object-length-thresholds', []))
                 logging.info(f"[Detection Model] {det_model['name']}: {len(detections)} instances with confidence {detections.confidence}")
 
                 enriched_segments = enrich_segments_with_detections(
-                    segments=enriched_segments, detections=detections, iou_threshold=0.4, confidence_threshold=0.7
+                    segments=enriched_segments, detections=detections, iou_threshold=0.4, confidence_threshold=confidence_threshold
                     )
             
             enriched_segments = self.filter_detections(

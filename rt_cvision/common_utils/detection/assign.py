@@ -85,7 +85,7 @@ def enrich_segments_with_detections(
     segments:Detections,
     detections: Detections,
     iou_threshold: float = 0.45,
-    confidence_threshold: float = 0.7,
+    confidence_threshold:Optional[float] = 0.7,
 ):
     """
     Assign detection data to matched segments and append high-confidence unmatched detections as new segments.

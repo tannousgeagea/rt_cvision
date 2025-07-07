@@ -85,33 +85,43 @@ DOWNGRADE_RULES = [
         "priority": 100,
     },
     {
-        "trigger_attribute": "furniture",
+        "trigger_attribute": "short",
         "target_severity": "low",
         "target_class_id": 1,
-        "label": "Low Risk (Furniture Override)",
+        "label": "Low Risk (Short Override)",
         "color": (204, 0, 102),
-        "with_additional_attributes": ["rigid", "fractured"],
+        "require_any_additional": True,
         "min_additional_count": 1,
-        "priority": 90,
+        "priority": 100,
     },
-    {
-        "trigger_attribute": "electronic_device",
-        "target_severity": "medium",
-        "target_class_id": 2,
-        "label": "Medium Risk (Electronic Override)",
-        "color": (0, 204, 255),
-        "exclude_attributes": ["battery"],  # Don't downgrade if battery present
-        "priority": 80,
-    },
-    {
-        "trigger_attribute": "textile",
-        "target_severity": "low",
-        "target_class_id": 1,
-        "custom_conditions": [
-            ["large"],  # Only if large
-        ],
-        "priority": 70,
-    }
+    # {
+    #     "trigger_attribute": "furniture",
+    #     "target_severity": "low",
+    #     "target_class_id": 1,
+    #     "label": "Low Risk (Furniture Override)",
+    #     "color": (204, 0, 102),
+    #     "with_additional_attributes": ["rigid", "fractured"],
+    #     "min_additional_count": 1,
+    #     "priority": 90,
+    # },
+    # {
+    #     "trigger_attribute": "electronic_device",
+    #     "target_severity": "medium",
+    #     "target_class_id": 2,
+    #     "label": "Medium Risk (Electronic Override)",
+    #     "color": (0, 204, 255),
+    #     "exclude_attributes": ["battery"],  # Don't downgrade if battery present
+    #     "priority": 80,
+    # },
+    # {
+    #     "trigger_attribute": "textile",
+    #     "target_severity": "low",
+    #     "target_class_id": 1,
+    #     "custom_conditions": [
+    #         ["large"],  # Only if large
+    #     ],
+    #     "priority": 70,
+    # }
 ]
 
 

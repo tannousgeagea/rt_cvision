@@ -14,6 +14,7 @@ from common_utils.ml_models import load_inference_module
 from common_utils.detection.core import Detections
 from common_utils.filters.core import FilterEngine
 from common_utils.trackers import SORTTracker
+from common_utils.log import Logger
 
 device = "gpu" if torch.cuda.is_available() else "cpu"
 
@@ -52,6 +53,7 @@ class Segmentation:
 
         self.tracker = SORTTracker()
         self.filter_engine = FilterEngine()
+        self.logger = Logger(name="Segmentation Model", level=logging.DEBUG)
         self.filter_config = self.config.get("filter_config")
         if self.filter_config:
             for obj_type, filter_model in self.filter_config.items():
@@ -82,7 +84,7 @@ class Segmentation:
             y_min, y_max = min(y_coords), max(y_coords)
             return c_image[y_min:y_max, x_min:x_max], (x_min, y_min, x_max, x_max), roi_pixels
         except Exception as err:
-            logging.error(f"Error in cropping image: {err}")
+            self.logger.error(f"Error in cropping image: {err}")
         
         return image, (0, 0, image.shape[1], image.shape[0]), roi
 
@@ -95,7 +97,10 @@ class Segmentation:
             segmentation_results=detections,
             filter_types=list(self.filter_config.keys()),
         )
-        logging.info(f"Filtered: {filtered_results}")
+        self.logger.info(f"Filtered: {filtered_results}")
+        if not filtered_results:
+            return detections, []
+        
         return cast(Detections, detections[filtered_results]), unwanted_rois
 
     def register(self, detections: Detections) -> Tuple[Detections, Detections]:
@@ -151,8 +156,8 @@ class Segmentation:
             return detections, cast(Detections, updated_detections[new_indices])
 
         except Exception as err:
-            logging.exception("Unexpected error during detection registration:")
-            raise
+            self.logger.error(f"Unexpected error during detection registration: {err}")
+            raise err
     
     def classify(self, detections:Detections):
         object_length_threshold = self.config['object-length-thresholds']
@@ -173,7 +178,7 @@ class Segmentation:
                 end_time=self.config.get('end_time', '23:59'),
                 timezone=self.config.get('timezone', 'UTC')
             ):
-                logging.info(f"Segmentation is inactive outside of {self.config.get('start_time', '00:00')} - {self.config.get('end_time', '23:59')}")
+                self.logger.info(f"Segmentation is inactive outside of {self.config.get('start_time', '00:00')} - {self.config.get('end_time', '23:59')}")
                 return Detections.from_dict({}), [], None
             
             assert not image is None, f'Image is None'
@@ -183,7 +188,7 @@ class Segmentation:
             detections = self.infer(image=c_image, confidence_threshold=confidence_threshold)
             
             start_inf = time.time()
-            logging.info(f"3. Total Inference Time: {round((time.time() - start_inf) * 1000, 2)} ms")
+            self.logger.info(f"3. Total Inference Time: {round((time.time() - start_inf) * 1000, 2)} ms")
 
             if roi:
                 detections = detections.adjust_to_roi(
@@ -192,14 +197,14 @@ class Segmentation:
                     original_size=image.shape[:2],
                 )
             detections, unwanted_rois = self.filter_detections(image, detections)
-            logging.info(f"4. Total Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
+            self.logger.info(f"4. Total Prediction Time: {round((time.time() - start_time) * 1000, 2)} ms")
 
             torch.cuda.empty_cache()
             max_memory_usage = torch.cuda.max_memory_allocated() / (1024 * 1024)
             reserved_memory = torch.cuda.max_memory_reserved() / (1024 * 1024)
 
-            logging.info(f'Memory Usage: {max_memory_usage} mb')
-            logging.info(f'Reserved Memory Usage: {reserved_memory} mb')
+            self.logger.info(f'Memory Usage: {max_memory_usage} mb')
+            self.logger.info(f'Reserved Memory Usage: {reserved_memory} mb')
 
             return detections, unwanted_rois, roi
         except Exception as err:

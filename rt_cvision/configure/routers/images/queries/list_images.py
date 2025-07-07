@@ -40,6 +40,7 @@ class ImpurityOut(BaseModel):
     class_id: int
     object_coordinates: List[float]
     timestamp: datetime
+    object_length: Optional[float] = None
     meta_info: Optional[dict] = None
 
     class Config:
@@ -101,7 +102,8 @@ def list_images(
                     class_id=i.class_id,
                     object_coordinates=i.object_coordinates,
                     timestamp=i.timestamp,
-                    meta_info=i.meta_info
+                    meta_info=i.meta_info,
+                    object_length=i.object_length,
                 )
                 for i in img.impurities.all()
             ]
