@@ -16,7 +16,7 @@ from tenants.models import Tenant
 from django.utils.timezone import now
 from common_utils.health.metadata import get_microservices
 from django.core.exceptions import ObjectDoesNotExist
-from common_utils.health.runtime import get_supervisord_uptime
+from common_utils.health.runtime import get_supervisord_uptime, get_supervisord_last_deployed
 from common_utils.health.metrics import get_metrics
 from common_utils.health.health_score import calculate_health_score
 
@@ -61,7 +61,7 @@ def metadata():
         "version": os.getenv("RTCVISION_VERSION", "1.0.0"),
         "environment": os.getenv("ENVIRONMENT", "production"),
         "uptime": get_supervisord_uptime(),
-        "lastDeployed": os.getenv("LAST_DEPLOYED", now().isoformat()),
+        "lastDeployed": get_supervisord_last_deployed(),
         "cpu": psutil.cpu_percent(interval=0.1),
         "memory": psutil.virtual_memory().percent,
         "healthScore": health_score,
