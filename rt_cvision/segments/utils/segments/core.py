@@ -97,10 +97,10 @@ class Segmentation:
             segmentation_results=detections,
             filter_types=list(self.filter_config.keys()),
         )
-        self.logger.info(f"Filtered: {filtered_results}")
-        if not filtered_results:
+        self.logger.info(f"Filtered: {filtered_results.shape}")
+        if filtered_results.shape[0] == 0:
             return detections, []
-        
+                    
         return cast(Detections, detections[filtered_results]), unwanted_rois
 
     def register(self, detections: Detections) -> Tuple[Detections, Detections]:

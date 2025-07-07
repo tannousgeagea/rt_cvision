@@ -1,4 +1,5 @@
 from django.db import models
+import common_utils.health.runtime
 
 # Create your models here.
 class Service(models.Model):

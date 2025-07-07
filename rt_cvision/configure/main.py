@@ -18,6 +18,8 @@ from configure.routers import tenant
 from configure.routers import data_acquisition
 from configure.routers import logs
 from configure.routers import images
+from configure.routers import health
+from common_utils.health.middleware import MetricsMiddleware
 
 def create_app() -> FastAPI:
     tags_meta = [
@@ -49,7 +51,8 @@ def create_app() -> FastAPI:
         allow_headers=["X-Requested-With", "X-Request-ID"],
         expose_headers=["X-Request-ID"],
     )
-
+    
+    app.add_middleware(MetricsMiddleware)
     app.include_router(endpoints.router)
     app.include_router(get_processor.router)
     app.include_router(endpoint.router)
@@ -57,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(tenant.endpoint.router)
     app.include_router(data_acquisition.endpoint.router)
     app.include_router(images.endpoint.router)
+    app.include_router(health.endpoint.router)
     
     return app
 
