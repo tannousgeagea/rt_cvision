@@ -14,7 +14,12 @@ from asgi_correlation_id import correlation_id
 from configure.routers.params import endpoints
 from configure.routers.processor import get_processor
 from configure.routers.configuration import endpoint
+from configure.routers import tenant
+from configure.routers import data_acquisition
 from configure.routers import logs
+from configure.routers import images
+from configure.routers import health
+from common_utils.health.middleware import MetricsMiddleware
 
 def create_app() -> FastAPI:
     tags_meta = [
@@ -38,7 +43,7 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json"
     )
 
-    origins = ["http//10.7.0.6:23085", "http://localhost:3001"]
+    origins = ["http//10.7.0.6:23085", "http://localhost:3001", "http://server2.learning.test.want:8080", "http://server2.learning.test.want:23085"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -46,11 +51,16 @@ def create_app() -> FastAPI:
         allow_headers=["X-Requested-With", "X-Request-ID"],
         expose_headers=["X-Request-ID"],
     )
-
+    
+    app.add_middleware(MetricsMiddleware)
     app.include_router(endpoints.router)
     app.include_router(get_processor.router)
     app.include_router(endpoint.router)
     app.include_router(logs.endpoint.router)
+    app.include_router(tenant.endpoint.router)
+    app.include_router(data_acquisition.endpoint.router)
+    app.include_router(images.endpoint.router)
+    app.include_router(health.endpoint.router)
     
     return app
 

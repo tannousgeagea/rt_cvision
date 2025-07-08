@@ -125,16 +125,18 @@ def get_uptime(items):
     return items[0]["description"]
 
 def get_service_config(service_id):
+    print(service_id)
     try:
-        service = Service.objects.get(service_name=service_id)
+        service = Service.objects.get(service_id=service_id)
     except Service.DoesNotExist:
         return {"groups": []}
     
-    groups = ServiceConfigGroup.objects.filter(service=service).order_by("order")
+    print(service_id)
+    groups = ServiceConfigGroup.objects.filter(service=service, is_active=True).order_by("order")
     groups_data = []
     
     for group in groups:
-        fields_qs = ServiceConfigFieldInstance.objects.filter(group=group).order_by("order")
+        fields_qs = ServiceConfigFieldInstance.objects.filter(group=group, is_active=True).order_by("order")
         fields_data = []
         for field in fields_qs:
             fields_data.append({

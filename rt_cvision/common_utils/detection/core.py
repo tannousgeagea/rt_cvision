@@ -29,8 +29,8 @@ class Detections:
         
     xyxy: np.ndarray
     xyxyn: np.ndarray
-    xy: Optional[np.ndarray] = None
-    xyn: Optional[np.ndarray] = None
+    xy: Optional[List[np.ndarray]] = None
+    xyn: Optional[List[np.ndarray]] = None
     mask: Optional[np.ndarray] = None
     confidence: Optional[np.ndarray] = None
     class_id: Optional[np.ndarray] = None
@@ -223,11 +223,17 @@ class Detections:
             'object_length': self.object_length.tolist() if self.object_length is not None else self.object_length,
             'object_area': self.object_area.tolist() if self.object_area is not None else self.object_area,
             'object_uid': self.uid.tolist() if self.uid is not None else self.uid,
+            'data': {k: [v_i.tolist() if isinstance(v_i, np.ndarray) else v_i for v_i in v] for k, v in self.data.items()}
         }
         
     @classmethod
     def from_dict(cls, results) -> 'Detections':
         assert isinstance(results, dict), f'results are expected to be of type dict, but got {type(results)}'
+        raw_data = results.get("data", {})
+        parsed_data = {
+            k: v
+            for k, v in raw_data.items()
+        }
         return Detections(
             xyxy=np.array(results.get('xyxy', [])),
             xyxyn=np.array(results.get('xyxyn', [])),
@@ -239,6 +245,7 @@ class Detections:
             object_length=np.array(results.get('object_length', None)) if 'object_length' in results.keys() else None,
             object_area=np.array(results.get('object_area', None)) if 'object_area' in results.keys() else None,
             uid=np.array(results.get('object_uid', None)) if 'object_uid' in results.keys() else None,
+            data=parsed_data,
         )
     
     @classmethod

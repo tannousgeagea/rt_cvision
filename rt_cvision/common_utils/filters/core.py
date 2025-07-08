@@ -1,19 +1,32 @@
+import logging
 import numpy as np
 from typing import List, Dict, Any
+from common_utils.detection.core import Detections
 from common_utils.model.base import BaseModels
+from common_utils.ml_models import load_inference_module
 
 class FilterEngine:
     def __init__(self):
         self.detection_models = {}
 
-    def add_model(self, object_type: str, detection_model: str, mlflow:bool=False, conf_threshold: float = 0.15):
+    def add_model(self, object_type: str, detection_model: str, config:dict, device:str, conf_threshold: float = 0.15):
         """Add a new detection model for a specific object type."""
+        if "type" not in config:
+            config["type"] =  "detection"
+
+        if "framework" in config:
+            config["framework"] = "yolo"
+
+        model_plugin = load_inference_module(
+            config=config
+        )
+
         self.detection_models[object_type] = {
-            "model": BaseModels(weights=detection_model, mlflow=mlflow),
+            "model": model_plugin(weights=detection_model, device=device, config=config),
             "conf_threshold": conf_threshold
         }
 
-    def filter_objects(self, image: Any, segmentation_results: List[Dict], filter_types: List[str]) -> List[Dict]:
+    def filter_objects(self, image: Any, segmentation_results: Detections, filter_types: List[str]):
         """
         Filters unwanted objects from segmentation results based on center point containment in ROI.
         - image: Original image
@@ -29,28 +42,27 @@ class FilterEngine:
                 model_entry = self.detection_models[obj_type]
                 detection_model = model_entry["model"]
                 conf_threshold = model_entry["conf_threshold"]
-                detection_results = detection_model.classify_one(
+                detection_results = detection_model.predict(
                     image=image,
-                    conf=conf_threshold,
-                    mode="detect",
+                    confidence_threshold=conf_threshold,
                 )
-                unwanted_rois.extend([det for det in detection_results.xyxyn.tolist()])
+                unwanted_rois.extend([{"det": det, "filter_type": obj_type} for det in detection_results.xyxyn.tolist()])
         
         if not unwanted_rois:
-            return range(len(segmentation_results))
+            return np.arange(len(segmentation_results)), unwanted_rois
         
         filtered_results = []
         for i, segment in enumerate(segmentation_results.xyxyn):
             center = self._get_center(segment)
             keep = True
             for roi in unwanted_rois:
-                if self._is_within(center, roi):
+                if self._is_within(center, roi["det"]):
                     keep = False
                     break
             if keep:
                 filtered_results.append(i)
 
-        return filtered_results
+        return np.array(filtered_results), unwanted_rois
 
     def _get_center(self, bbox):
         """

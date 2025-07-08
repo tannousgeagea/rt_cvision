@@ -2,190 +2,107 @@
 import os
 import cv2
 import uuid
+import rclpy
 import logging
-import threading
 import numpy as np
-from typing import Optional, Dict
-from datetime import datetime, timezone
+from typing import Optional, Dict, cast
 from common_utils.model.base import BaseModels
-from impurity.utils.objects.core import ObjectManager
 from common_utils.detection.core import Detections
-
-from configure.client import ConfigManager
-config_manager = ConfigManager()
-
-model = BaseModels(
-    weights=config_manager.impurity.weights, 
-    task='impurity', 
-    mlflow=config_manager.impurity.mlflow.get('active', False)
-)
-
-mapping_threshold:list = [0., 0.3, 0.5, 1.]
-mapping_colors:list = [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)]
-mapping_key:str = 'object_length'
-classes:list = [1, 2]
+from configure.client import ServiceConfigClient
+from impurity.utils.detect.core import DetectionModel
+from impurity.tasks.core import TaskRunner
+from common_utils.annotate.color import Color
+from common_utils.draw.core import BoxAnnotator
+from common_utils.object_size.utils import get_size_threshold
+from impurity.tasks.publish.core import ImagePublisher, run as ros2_run
+from common_utils.severity.utils import SEVERITY_LEVEL_MAP_BY_CLASS_vectorized
+from impurity.utils.database.core import DatabaseManager
 
 class Processor:
     def __init__(self) -> None:
         self.map_tracker_id_2_object_uid = {}
-    
-    def execute(self, cv_image:np.ndarray, data:Optional[Dict]=None, classes=None):
-        try:
-            data = self.register_objects(data)
-            segments = Detections.from_dict(data)
+        self.config_client = ServiceConfigClient(
+            api_url="http://localhost:23085",
+            service_id="impurity"
+        )
 
-            print(segments.object_length)
-            indices = np.where(segments.object_length >= mapping_threshold[1])[0]
-            segments = segments[indices]
+        self.config = self.config_client.load()
+        self.config["tenant"] = self.config_client.get_tenant_context()
+        logging.info("Parameters:")
+        logging.info("---------------------")
+        for key, value in self.config.items():
+            logging.info(f"\t {key}: {value}")
+
+        self.db_manager = DatabaseManager(self.config)
+        self.tasks_runner = TaskRunner(self.tasks)
+
+        rclpy.init()
+        self.config["show_legend"] = True
+        self.config["show_timestamp"] = True
+        self.config["show_object_size"] = False
+        self.config['show_class_label'] = True
+        self.config['show_attributes'] = False
+        self.config['show_context'] = True
+        self.box_annotator = BoxAnnotator(config=self.config)
+        self.ipublisher = ImagePublisher(config=self.config, topic="/rgb/left/impurity/enriched")
+        self.detection_models = DetectionModel(self.config)
+        self.labels, self.colors, self.thresholds = [], [], []
+
+    def execute(self, cv_image:np.ndarray, data:Dict, classes=None):
+        try:
+            if not self.labels or self.colors or self.thresholds:
+                self.labels, self.colors, self.thresholds = get_size_threshold(object_length_threshold=data.get('object-length-thresholds', []))
             
-            if not len(segments):
-                print('No Qualified Objects')
-                return
-            
-            detections = model.classify_one(cv_image, conf=config_manager.impurity.conf, is_json=False)
-            if classes:
-                detections = detections[np.isin(detections.class_id, classes)]
-            
-            if not len(detections):
-                print('No Detection ! 🕵️‍♂️🔍❌ ')
-                return 
-            
-            detections = detections.with_nms()
-            object_manager = ObjectManager(
-                segments=segments, detections=detections
+            unique_segments = Detections.from_dict(results=data["unique_detections"])
+            logging.info(f"[Impurity] Segments: {len(unique_segments)}")
+            if unique_segments.object_length is not None:
+                indices = np.where(unique_segments.object_length >= self.thresholds[1])[0]
+                unique_segments = cast(Detections, unique_segments[indices])
+
+            logging.info(f"[Impurity] Potential Segments: {len(unique_segments)}")
+            detections = self.detection_models.run(
+                segments=unique_segments, image=cv_image, 
+                confidence_threshold=self.config.get("confidence_threshold", 0.25), data=data
+            )
+            logging.info(f"[Impurity] Enriched Segments: {len(detections)}")
+            detections = self.detection_models.check_duplicate(detections)
+            detections, pdetections = self.detection_models.classify(detections=detections)
+            severity = SEVERITY_LEVEL_MAP_BY_CLASS_vectorized(classes=detections.class_id, thresholds=[1, 2, 3])
+            logging.info(f"[Impurity] Severity {severity}")
+            logging.info(f"[Impurity] Classes: {detections.data['class_name']}")
+            logging.info(f"[Impurity] Attributes: {detections.data.get('attributes')}")
+            logging.info(f"[Impurity] Context: {detections.data['context']}")
+            logging.info(f"[Impurity] {len(detections)} detections vs {len(pdetections)} problematic detections")
+
+            message = {
+                "cv_image": cv_image.copy(),
+                "thresholds": self.thresholds,
+                "colors": self.colors,
+                "legend": self.labels,
+                "severity": severity.tolist(),
+                "detections": detections.to_dict(),
+                "pdetections": pdetections.to_dict(),
+                **self.config,
+                "image_publisher": self.ipublisher,
+            }
+         
+            image = self.box_annotator.draw(cv_image=cv_image, data=message)
+            message["annotated_image"] = image
+
+            self.tasks_runner.run(
+                tasks=[
+                    "save-detections", 
+                    "publish-ros2"
+                ],
+                parameters=message,
             )
             
-            detections = object_manager.is_problematic()
-            if detections is None:
-                return
-
-            object_manager.severtiy_level(mapping_key=mapping_key, mapping_threshold=mapping_threshold)
-            object_manager.save(cv_image=cv_image)
-            return detections
-
-            
-        #     objects_seg = check_object_size.check(
-        #         objects=data,
-        #         threshold=[0., 0.5, 1.],
-        #     )    
-        
-        #     if not objects_seg.get('xyxyn'):
-        #         return
-            
-        #     print(f'Detecting {len(detections)} potential impurity vs {len(objects_seg.get("xyxyn"))} Segments ! Analyis started 🔍 ... ...')
-        #     problematic_objects = check_object_problematic.is_object_problematic(
-        #         detections=detections, segments=objects_seg, iou_threshold=iou_threshold, mapping_key=mapping_key, mapping_threshold=mapping_threshold,
-        #     )
-            
-        #     problematic_objects = self.register_objects(problematic_objects)
-        #     if not problematic_objects.get('xyxyn'):
-        #         return
-            
-        #     labels = [
-        #         f'{int(mapping_threshold[i] * 100)} - {int(mapping_threshold[i+1] * 100)} cm'
-        #         for i in range(len(mapping_threshold) - 1)
-        #     ] + [f'> {int(mapping_threshold[-1] * 100)} cm']
-
-        #     alarm_image = draw(
-        #         params={
-        #             "cv_image": cv_image.copy(),
-        #             "line_width": line_width,
-        #             "colors": mapping_colors,
-        #             "objects": problematic_objects,
-        #             "legend": labels,
-        #         }
-        #     )
-            
-        #     delivery_id = get(
-        #         url=delivery_api_url,
-        #         params={
-        #             "timestamp": datetime.now(tz=timezone.utc)
-        #         }
-        #     )
-            
-        #     event_uid = str(uuid.uuid4())
-        #     filename = (
-        #         f"{entity.entity_type.tenant.tenant_name}_"
-        #         f"{entity.entity_uid}_"
-        #         f"{sensorbox.sensor_box_location}_"
-        #         f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_"
-        #         f"{event_uid}.jpg"
-        #     )
-            
-        #     params = {
-        #         "cv_image": cv_image,
-        #         "snapshot": alarm_image,
-        #         "snapshot_dir": snapshot_dir,
-        #         "filename": filename,
-        #         "experiment_dir": experiment_dir,
-        #         "timestamp": data.get('datetime'),
-        #         "severity_level": problematic_objects.get('severity_level'),
-        #         "event_uid": event_uid,
-        #         "event_description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
-        #         "snapshot_url": f"/alarms/snapshots/stoerstoff/{filename}",
-        #         "snapshot_id": str(uuid.uuid4()),
-        #         "model_name": parameters.get('weights'),
-        #         "model_tag": 'v003',
-        #         "db_url": db_url,
-        #         "video_url": video_url,
-        #         "gate_id": os.getenv('GATE_ID', 'gate03'),
-        #         "topic": topic,
-        #         "objects": problematic_objects,
-        #         "delivery_id": delivery_id,
-        #         "edge_2_cloud_url": edge_2_cloud_url,
-        #         "media_file": f"{snapshot_dir}/{filename}",
-        #         "meta_info": {
-        #             "description": f"{len(problematic_objects.get('severity_level', []))} prob. Langteile: {problematic_objects.get('object_length')}",
-        #         }
-        #     }
-            
-        #     for key, value in parameters.get('tasks', {}).items():
-        #         func = tasks.get(key)
-        #         if value:
-        #             print(f"Executing {key} ... ", end='')
-        #             func(params)
-        #             print("Done")
-            
         except Exception as err:
-            logging.error(f"Error while executing detections in impurity: {err}")
-            
-    
-    def register_objects(self, objects:dict):
-        """
-        Registers objects by assigning unique IDs (object_uid) and updating internal mapping
-        of tracker_id to object_uid. If tracker_id is already known, it reuses the existing object_uid.
+            logging.error(f"[Impurity] Error while executing detections in impurity: {err}")
 
-        Args:
-            objects (dict): Dictionary containing object data with keys such as 'tracker_id' and 'xyn'.
-
-        Returns:
-            new_objects (dict): Dictionary of newly registered objects.
-            objects (dict): Original dictionary with updated 'object_uid' for known tracker_ids.
-        """
-        assert 'xyxyn' in objects.keys(), f"key: xyn not found in objects"
-        object_tracker_id = objects.get('tracker_id', [])
-                
-        if not object_tracker_id:
-            return objects
-             
-        new_objects = objects.copy()   
-        try:
-            new_objects = {
-                key:[
-                    value[i] for i in range(len(value))
-                    if object_tracker_id[i] not in self.map_tracker_id_2_object_uid
-                ] 
-                for key, value in new_objects.items()
-                if isinstance(value, list)
-            }
-            
-            for i, tracker_id in enumerate(object_tracker_id):
-                if tracker_id in self.map_tracker_id_2_object_uid.keys():
-                    continue
-                
-                self.map_tracker_id_2_object_uid[tracker_id] = objects.get('object_uid')[i]
-                       
-        except Exception as err:
-            logging.error(f'Unexpected Error while registering objects: {err}')
-            
-        return new_objects
+    @property
+    def tasks(self) -> Dict:
+        return {
+            "save-detections": self.db_manager.save,
+            "publish-ros2": ros2_run
+        }

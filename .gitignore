@@ -1,7 +1,6 @@
 *.pyc*
 *__pycache__*
 log
-*run*
 # config
 data
 # config

@@ -138,6 +138,27 @@ class Annotator(Colors):
             except Exception as err:
                 logging.error('Error when drawing bbxes: %s' %err)
 
+    def draw_enclosing_transparent_circle(self, box, color=(0, 255, 255), alpha=0.5):
+        """
+        Draw a transparent circle centered at the box center,
+        large enough to enclose the entire bounding box.
+        
+        Args:
+            img (np.ndarray): Input image.
+            box (tuple): (x1, y1, x2, y2) - bounding box coordinates.
+            color (tuple): BGR color for the overlay circle.
+            alpha (float): Transparency level (0.0 to 1.0).
+        """
+        x1, y1, x2, y2 = box
+        cx = int((x1 + x2) / 2)
+        cy = int((y1 + y2) / 2)
+        width = x2 - x1
+        height = y2 - y1
+        radius = int(np.sqrt(width**2 + height**2) / 2)
+        overlay = self.im.data.copy()
+        cv2.circle(overlay, (cx, cy), radius, color, thickness=-1)
+        self.im.data = cv2.addWeighted(overlay, alpha, self.im.data, 1 - alpha, 0, dst=self.im.data)
+
     def class_label(self, label='', txt_color=None, cls_id=0, color=None):
         color = color if color is not None else tuple(self.colors[cls_id].tolist())
         p1 = (0, 0)
@@ -157,7 +178,7 @@ class Annotator(Colors):
     def legend(self, 
         img, 
         labels=['0 - 50 cm', '50 - 100 cm', '> 100 cm'], 
-        line_width=3, 
+        line_width=None, 
         color=((0, 255, 0), (0, 255, 255), (0, 0, 255)), 
         txt_color=None
         ):
@@ -178,7 +199,7 @@ class Annotator(Colors):
         Returns:
             None: The function modifies the input image by adding the legend.
         """
-
+        line_width = line_width or self.lw
         tf = max(line_width - 1, 1)
         size = np.array([cv2.getTextSize(l, 0, fontScale=line_width / 4, thickness=tf)[0] for l in labels])
         w, h = np.max(size, axis=0)
@@ -205,10 +226,97 @@ class Annotator(Colors):
             p1 = (p1[0], p1[1] + h + 10)
 
 
-    def add_legend(self, legend_text, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=2, font_thickness=3, legend_color=(255, 255, 255), pos='buttom-left'):
+    def legend_v2(
+        self,
+        img,
+        labels=('0 - 50 cm', '50 - 100 cm', '> 100 cm'),
+        line_width=None,
+        color=((0, 255, 0), (0, 255, 255), (0, 0, 255)),
+        txt_color=None,
+    ):
+        """
+        Add a scalable legend box to an image for visualizing object size categories.
+
+        All layout parameters are dynamically derived from line_width.
+
+        Args:
+            img (np.ndarray): Image to annotate.
+            labels (tuple): Category labels for legend.
+            line_width (int, optional): Drawing line width.
+            color (tuple): BGR color for each label.
+            txt_color (tuple, optional): Text color, auto-set if None.
+
+        Returns:
+            None (modifies image in-place).
+        """
+        line_width = line_width or getattr(self, "lw", 2)
+
+        # === Dynamic Scaling Factors ===
+        font_scale = line_width / 4.5
+        font_thickness = max(line_width - 1, 1)
+        spacing = int(line_width * 2.5)            # vertical space between entries
+        color_box_width = int(line_width * 8)      # width of color box
+        color_box_pad = int(line_width * 1.2)      # padding between color box and text
+        text_pad = int(line_width * 2)             # horizontal padding inside bg box
+        outer_pad = int(line_width * 4)            # outer padding for the bg box
+        font = cv2.FONT_HERSHEY_SIMPLEX
+
+        # === Compute text dimensions ===
+        sizes = [cv2.getTextSize(label, font, font_scale, font_thickness)[0] for label in labels]
+        max_text_width = max(w for w, _ in sizes)
+        text_height = max(h for _, h in sizes)
+
+        entry_height = text_height + spacing
+        total_height = entry_height * len(labels)
+        total_width = color_box_width + color_box_pad + max_text_width + 2 * text_pad
+
+        # === Positioning ===
+        height, width = img.shape[:2]
+        x0 = width - total_width - outer_pad
+        y0 = height - total_height - outer_pad
+
+        # === Background Box ===
+        cv2.rectangle(
+            img,
+            (x0 - text_pad, y0 - text_pad),
+            (x0 + total_width + text_pad, y0 + total_height + text_pad),
+            (255, 255, 255),
+            -1,
+        )
+
+        # === Draw Each Entry ===
+        for i, label in enumerate(labels):
+            y = y0 + i * entry_height
+            # Color box
+            cv2.rectangle(
+                img,
+                (x0, y),
+                (x0 + color_box_width, y + text_height + 4),
+                color[i],
+                -1
+            )
+
+            tc = txt_color or (0, 0, 0)
+            # Label text
+            cv2.putText(
+                img,
+                label,
+                (x0 + color_box_width + color_box_pad, y + text_height),
+                font,
+                font_scale,
+                tc,
+                thickness=font_thickness,
+                lineType=cv2.LINE_AA
+            )
+
+
+
+    def add_legend(self, legend_text, font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=None, font_thickness=None, legend_color=(255, 255, 255), pos='buttom-left'):
 
         # Get the size of the legend text
-        text_size = cv2.getTextSize(legend_text, font, font_scale, font_thickness)[0]
+        font_scale = font_scale or self.lw / 3
+        tf = font_thickness or max(self.lw - 1, 1)
+        text_size = cv2.getTextSize(legend_text, font, font_scale, tf)[0]
         position = (5, self.im.data.shape[0] - 5)
 
         # Calculate the position for the legend at the left bottom of the image
@@ -225,7 +333,7 @@ class Annotator(Colors):
 
         # Put the legend text on the image
         cv2.putText(self.im.data, legend_text, (position[0] + 5, position[1] - 5),
-                    font, font_scale, (0, 0, 0), font_thickness)
+                    font, font_scale, (0, 0, 0), tf)
 
 
 

@@ -8,17 +8,11 @@ import json
 import time
 import logging
 from concurrent import futures
-
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
 from common_utils.services.redis_manager import RedisManager
 from visualizes.interface.grpc import visualizes_service_pb2
 from visualizes.interface.grpc import visualizes_service_pb2_grpc
-from visualizes.tasks.publish import (
-    # publish_image_to_ros,
-    publish_image_to_ros2,
-)
-from visualizes.tasks.annotate.base import draw
+from visualizes.main import Processor
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
@@ -27,6 +21,7 @@ redis_manager = RedisManager(
     password=os.environ['REDIS_PASSWORD'],
 )
 
+processor = Processor()
 class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
     def ProcessData(self, request, context):
         data = json.loads(request.data)
@@ -39,29 +34,9 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        object_length_threshold = [0., 0.3, 0.5, 1.]
-        labels = [
-            f'{int(object_length_threshold[i] * 100)} - {int(object_length_threshold[i+1] * 100)} cm'
-            for i in range(len(object_length_threshold) - 1)
-        ] + [f'> {int(object_length_threshold[-1] * 100)} cm']
-
-        params={
-            "cv_image": retrieved_image.copy(),
-            "line_width": 3,
-            "thresholds": object_length_threshold,
-            "colors": [(0, 255, 0), (0, 255, 255), (0, 165, 255), (0, 0, 255)],
-            "objects": data,
-            "legend": labels,
-        }
-
-        image = draw(
-            params=params,
-        )
-        
-        params['cv_image'] = image
-        success = publish_image_to_ros2.execute(
-            params=params,
-            # topic='/sensor_processed/rgbmatrix_01/impurity_detection/live_mode'
+        success = processor.run(
+            cv_image=retrieved_image,
+            data=data,
         )
         
         result = json.dumps(

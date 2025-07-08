@@ -14,14 +14,14 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 from common_utils.services.redis_manager import RedisManager
 from segments.interface.grpc import waste_segments_service_pb2
 from segments.interface.grpc import waste_segments_service_pb2_grpc
-from segments.tasks.publish.core import publish_to_kafka
-from segments.tasks.segment import predictor
+# from segments.tasks.publish.core import publish_to_kafka
+# from segments.tasks.segment import predictor
 from segments.main import Processor
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
+    port=int(os.environ['REDIS_PORT']),
+    db=int(os.environ['REDIS_DB']),
     password=os.environ['REDIS_PASSWORD'],
 )
 
@@ -35,13 +35,13 @@ class ServiceImpl(waste_segments_service_pb2_grpc.ComputingUnitServicer):
         img_key = data.get('img_key', 'None')
         status, retrieved_image = redis_manager.retrieve_image(key=img_key)
         
+
+        logging.info(f"Retrieved Image: {retrieved_image.shape}")
         assert status, f'Failed to retrieve image from Redis'
         assert not retrieved_image is None, f'Retrieved image is None'
         
-        detections = predictor.predict(image=retrieved_image)
-        processor.execute(
-            cv_image=retrieved_image, 
-            detections=detections, 
+        processor.run(
+            cv_image=retrieved_image,
             data=data,
             )
         

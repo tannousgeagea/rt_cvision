@@ -4,7 +4,7 @@ class KeepTrackOfTime:
     def __init__(self):
         self.what_is_the_time = time.time()
 
-    def check_if_time_less_than_diff(self, start, end, diff=1):
+    def check_if_time_less_than_diff(self, start, end, diff:float=1.):
         return (end - start) < diff
     
     def update_time(self, new):

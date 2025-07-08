@@ -23,8 +23,8 @@ keep_track_of_time = KeepTrackOfTime()
 
 redis_manager = RedisManager(
     host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
+    port=int(os.environ['REDIS_PORT']),
+    db=int(os.environ['REDIS_DB']),
     password=os.environ['REDIS_PASSWORD'],
 )
 
@@ -102,12 +102,17 @@ def read_data(params, callback=None,  args=None):
     callback = callback if not callback is None else default_callback
     
     def _callback(*data):
-        ACQUISITION_RATE = redis_manager.redis_client.get("ACQUISITION_RATE") or DEFAULT_ACQUISITION_RATE
+        raw = redis_manager.redis_client.get("ACQUISITION_RATE")
+        try:
+            ACQUISITION_RATE = float(raw) if raw else DEFAULT_ACQUISITION_RATE
+        except (ValueError, TypeError):
+            ACQUISITION_RATE = DEFAULT_ACQUISITION_RATE
+        # ACQUISITION_RATE = redis_manager.redis_client.get("ACQUISITION_RATE") or DEFAULT_ACQUISITION_RATE
         print(f"Publishing at: {ACQUISITION_RATE} fps")
         if keep_track_of_time.check_if_time_less_than_diff(
             start=keep_track_of_time.what_is_the_time, 
             end=time.time(), 
-            diff=(1 / (int(ACQUISITION_RATE) + 1))
+            diff=(1 / (abs(ACQUISITION_RATE) + 1e-5)), #int((1 / (int(ACQUISITION_RATE) + 1)) if int(ACQUISITION_RATE) > 0 else 1)
             ):
             print("ignoring ... ... ")
             return

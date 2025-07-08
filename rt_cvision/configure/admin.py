@@ -18,11 +18,12 @@ from .models import (
 
 class ServiceParamsInline(TabularInline):
     model = ServiceParams
+    extra = 0
 
 class ServiceConfigFieldInstanceInline(TabularInline):
     model = ServiceConfigFieldInstance
     extra = 1
-    fields = ('definition', 'value', 'order', 'meta_info')
+    fields = ('definition', 'value', 'order', "is_active", 'meta_info')
     ordering = ('order',)
     
 class ServiceConfigGroupInline(TabularInline):
