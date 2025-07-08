@@ -9,7 +9,7 @@ class FilterEngine:
     def __init__(self):
         self.detection_models = {}
 
-    def add_model(self, object_type: str, detection_model: str, config:dict, device:str, mlflow:bool=False, conf_threshold: float = 0.15):
+    def add_model(self, object_type: str, detection_model: str, config:dict, device:str, conf_threshold: float = 0.15):
         """Add a new detection model for a specific object type."""
         if "type" not in config:
             config["type"] =  "detection"
@@ -21,7 +21,6 @@ class FilterEngine:
             config=config
         )
 
-        logging.info(config)
         self.detection_models[object_type] = {
             "model": model_plugin(weights=detection_model, device=device, config=config),
             "conf_threshold": conf_threshold

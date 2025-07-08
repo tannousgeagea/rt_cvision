@@ -55,14 +55,16 @@ class Segmentation:
         self.filter_engine = FilterEngine()
         self.logger = Logger(name="Segmentation Model", level=logging.DEBUG)
         self.filter_config = self.config.get("filter_config")
-        if self.filter_config:
-            for obj_type, filter_model in self.filter_config.items():
+        self.active_filter_names = []
+        self.active_filters = list(filter(lambda m: m.get("active"), self.filter_config)) if self.filter_config else None
+        if self.active_filters:
+            for filter_model in self.active_filters:
+                self.active_filter_names.append(filter_model['name'])
                 self.filter_engine.add_model(
-                    object_type=obj_type,
+                    object_type=filter_model['name'],
                     detection_model=filter_model["model_path"],
-                    config=self.filter_config[obj_type],
+                    config=filter_model,
                     device=config.get("device") or device,
-                    mlflow=filter_model["mlflow"]
                 )
 
     def infer(self, image: np.ndarray, confidence_threshold:Optional[float] = 0.25):
@@ -89,15 +91,14 @@ class Segmentation:
         return image, (0, 0, image.shape[1], image.shape[0]), roi
 
     def filter_detections(self, image:np.ndarray, detections:Detections):
-        if not self.filter_config:
+        if not self.active_filters:
             return detections, []
         
         filtered_results, unwanted_rois = self.filter_engine.filter_objects(
             image=image,
             segmentation_results=detections,
-            filter_types=list(self.filter_config.keys()),
+            filter_types=list(self.active_filter_names),
         )
-        self.logger.info(f"Filtered: {filtered_results.shape}")
         if filtered_results.shape[0] == 0:
             return detections, []
                     
