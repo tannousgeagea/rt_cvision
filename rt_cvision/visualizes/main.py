@@ -7,6 +7,8 @@ from common_utils.annotate.color import Color
 from common_utils.draw.core import BoxAnnotator
 from visualizes.tasks.publish.core import ImagePublisher, run as run_ros2
 from visualizes.tasks.core import TaskRunner
+from common_utils.object_size.utils import get_size_threshold
+
 
 class Processor:
     def __init__(self) -> None:
@@ -31,16 +33,7 @@ class Processor:
     def run(self, cv_image, data):
         success = False
         try:
-            object_length_threshold = data.get("object-length-thresholds")
-            if object_length_threshold:
-                labels, colors, thresholds = [], [], []
-                for threshold in object_length_threshold:
-                    if threshold["max"]:
-                        labels.append(f"{threshold['min']} - {threshold['max']}")
-                    else:
-                        labels.append(f" > {threshold['min']}")
-                    colors.append(Color.from_hex(threshold['color']).as_bgr())
-                    thresholds.append(threshold['min'])
+            labels, colors, thresholds = get_size_threshold(object_length_threshold=data.get('object-length-thresholds', []))
 
             message = {
                 "cv_image": cv_image.copy(),

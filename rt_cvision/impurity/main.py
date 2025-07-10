@@ -65,8 +65,8 @@ class Processor:
                 confidence_threshold=self.config.get("confidence_threshold", 0.25), data=data
             )
             logging.info(f"[Impurity] Enriched Segments: {len(detections)}")
-            detections, pdetections = self.detection_models.classify(detections=detections)
             detections = self.detection_models.check_duplicate(detections)
+            detections, pdetections = self.detection_models.classify(detections=detections)
             severity = SEVERITY_LEVEL_MAP_BY_CLASS_vectorized(classes=detections.class_id, thresholds=[1, 2, 3])
             logging.info(f"[Impurity] Severity {severity}")
             logging.info(f"[Impurity] Classes: {detections.data['class_name']}")
