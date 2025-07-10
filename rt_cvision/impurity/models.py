@@ -31,9 +31,16 @@ class Impurity(models.Model):
         
     def __str__(self):
         return f"Object {self.object_uid} ({self.class_id}) ({self.object_uid})"
-    
+
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+        is_new = self.pk is None
+        super().save(*args, **kwargs) 
+        if is_new:
+            try:
+                queue_impurity_event(self)
+            except Exception as e:
+                # Optional: logging instead of print
+                print(f"Redis push failed: {e}")
         
 class ImpurityTag(models.Model):
     impurity = models.ForeignKey(Impurity, on_delete=models.CASCADE, related_name='impurity_tags')
@@ -71,13 +78,3 @@ class ImpurityTask(models.Model):
     
     def __str__(self):
         return self.name
-    
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        super().save(*args, **kwargs) 
-        if is_new:
-            try:
-                queue_impurity_event(self)
-            except Exception as e:
-                # Optional: logging instead of print
-                print(f"Redis push failed: {e}")
