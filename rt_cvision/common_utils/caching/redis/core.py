@@ -1,14 +1,10 @@
 import os
 from typing import Any, Optional
 from common_utils.caching.base import BaseCache
-from common_utils.services.redis_manager import RedisManager
+from common_utils.services.redis import redis_manager
 
-redis_manager = RedisManager(
-    host=os.environ['REDIS_HOST'],
-    port=int(os.environ['REDIS_PORT']),
-    db=int(os.environ['REDIS_DB']),
-    password=os.environ['REDIS_PASSWORD'],
-)
+if not redis_manager:
+    raise ValueError(f"⚠️ Redis is not available.")
 
 cache = redis_manager.redis_client
 

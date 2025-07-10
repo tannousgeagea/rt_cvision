@@ -8,15 +8,8 @@ import logging
 from common_utils.services.kafka_manager import KafkaServiceManager
 from segments.interface.grpc import waste_segments_service_pb2
 from segments.interface.grpc import waste_segments_service_pb2_grpc
-from common_utils.services.redis_manager import RedisManager
+from common_utils.services.redis import redis_manager
 from segments.tasks.database import register
-
-redis_manager = RedisManager(
-    host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
-    password=os.environ['REDIS_PASSWORD'],
-)
 
 
 def run(messages):
@@ -38,6 +31,9 @@ def run(messages):
             
             execution_time = time.time() - start_time
             safe_time = max(execution_time, 1e-3)
+            if not redis_manager:
+                raise ValueError(f"⚠️ Redis is not available.")
+            
             redis_manager.redis_client.set("ACQUISITION_RATE", 1.0 / safe_time)
             
             print(f"Execution Time: {int(execution_time * 1000)} milliseconds!")

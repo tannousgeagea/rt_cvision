@@ -7,15 +7,15 @@ import uuid
 import logging
 from data_reader.interface.grpc import service_pb2
 from data_reader.interface.grpc import service_pb2_grpc
-from common_utils.services.redis_manager import RedisManager
+from common_utils.services.redis import redis_manager
 
 
-redis_manager = RedisManager(
-    host=os.environ['REDIS_HOST'],
-    port=int(os.environ['REDIS_PORT']),
-    db=int(os.environ['REDIS_DB']),
-    password=os.environ['REDIS_PASSWORD'],
-)
+# redis_manager = RedisManager(
+#     host=os.environ['REDIS_HOST'],
+#     port=int(os.environ['REDIS_PORT']),
+#     db=int(os.environ['REDIS_DB']),
+#     password=os.environ['REDIS_PASSWORD'],
+# )
 
 def run(payload):
     try:
@@ -33,6 +33,10 @@ def run(payload):
             timestamp = payload['timestamp']
             signal = {key: value for key, value in payload.items() if key!='cv_image'}
             img_key = str(uuid.uuid4())
+
+            if not redis_manager:
+                raise ValueError(f"⚠️ Redis is not available.")
+            
             status, img_key = redis_manager.handle_storage(cv_image, key=img_key, expire=int(os.environ.get('REDIS_EXPIRE', 5)))
             
             if not status:
