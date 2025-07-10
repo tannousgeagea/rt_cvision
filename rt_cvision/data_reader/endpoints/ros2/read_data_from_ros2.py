@@ -6,11 +6,9 @@ import logging
 from rclpy.node import Node
 from datetime import datetime
 from sensor_msgs.msg import Image, CompressedImage
-from cv_bridge import CvBridge, CvBridgeError
-from common_utils.services.redis_manager import RedisManager
+from common_utils.services.redis import redis_manager
 from common_utils.time_utils import KeepTrackOfTime
 from data_reader.utils.ros_utils import extract_data_from_topic
-import subprocess
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -19,14 +17,6 @@ DATETIME_FORMAT = "%Y-%m-%d %H-%M-%S"
 DEFAULT_ACQUISITION_RATE = 2 #fps
 queue_size = 1
 keep_track_of_time = KeepTrackOfTime()
-
-
-redis_manager = RedisManager(
-    host=os.environ['REDIS_HOST'],
-    port=int(os.environ['REDIS_PORT']),
-    db=int(os.environ['REDIS_DB']),
-    password=os.environ['REDIS_PASSWORD'],
-)
 
 print(f'ROS DISTRO: {os.environ.get("ROS_DISTRO")}')
 print(os.environ)
@@ -43,34 +33,6 @@ class ImageSubscriber(Node):
             10  # QoS (Quality of Service) profile depth
         )
         
-        # self.monitor_topic_hz(topic=topic)
-        
-    def monitor_topic_hz(self, topic):
-        try:
-            # Run the `ros2 topic hz` command to monitor the topic frequency
-            
-            logging.info(f'monitoring {topic}....')
-            process = subprocess.Popen(
-                ["ros2", "topic", "hz", topic],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True  # Ensures output is in string format
-            )
-            
-            output = process.stdout.readline()
-            
-            logging.info(output)
-            # Continuously read the output from the subprocess
-            while True:
-                output = process.stdout.readline()
-                if output:
-                    print(f"[Topic Frequency]: {output.strip()}")
-                # If the process ends, break the loop
-                if process.poll() is not None:
-                    break
-
-        except Exception as e:
-            logging.error(f"Error while monitoring topic frequency: {e}")
         
 def collect_messages(data):
     messages = {}
@@ -87,27 +49,26 @@ def collect_messages(data):
     return messages
 
 def read_data(params, callback=None,  args=None):
-    print('hello')
-    
     rclpy.init(args=args)
-    
     # define  a default callback
     def default_callback(data):
         print(
                 'Please define a custom callback!' + \
                     f'\n current payload contains {tuple(data.keys())}'
                 )
-        
-        
+          
     callback = callback if not callback is None else default_callback
     
     def _callback(*data):
-        raw = redis_manager.redis_client.get("ACQUISITION_RATE")
+        if redis_manager:
+            raw = redis_manager.redis_client.get("ACQUISITION_RATE")
+        else:
+            raw = DEFAULT_ACQUISITION_RATE
         try:
             ACQUISITION_RATE = float(raw) if raw else DEFAULT_ACQUISITION_RATE
         except (ValueError, TypeError):
             ACQUISITION_RATE = DEFAULT_ACQUISITION_RATE
-        # ACQUISITION_RATE = redis_manager.redis_client.get("ACQUISITION_RATE") or DEFAULT_ACQUISITION_RATE
+
         print(f"Publishing at: {ACQUISITION_RATE} fps")
         if keep_track_of_time.check_if_time_less_than_diff(
             start=keep_track_of_time.what_is_the_time, 

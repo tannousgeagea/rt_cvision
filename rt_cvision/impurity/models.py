@@ -3,6 +3,7 @@ from metadata.models import Tag
 from data_reader.models import (
     Image
 )
+from .signals import queue_impurity_event
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -70,3 +71,13 @@ class ImpurityTask(models.Model):
     
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs) 
+        if is_new:
+            try:
+                queue_impurity_event(self)
+            except Exception as e:
+                # Optional: logging instead of print
+                print(f"Redis push failed: {e}")

@@ -1,4 +1,5 @@
 import os
+import cv2
 import time
 import requests
 from celery import shared_task
@@ -6,6 +7,19 @@ import logging
 from datetime import datetime
 logger = logging.getLogger(__name__)
 from common_utils.sync.core import sync
+
+
+def get_param(param):    
+    service_params = requests.get(
+        f"http://localhost:23085/api/v1/params/impurity/{param}",
+    )
+
+    if service_params.status_code == 200:
+        service_params = service_params.json()
+    else:
+        raise ValueError(f"Failed to upload file. Status code: {service_params.status_code}, Response: {service_params.text}")
+
+    return service_params["value"]
 
 def post_annotations(api_url, project_name, image_id, annotation_type, annotations):
     """
@@ -32,7 +46,6 @@ def post_annotations(api_url, project_name, image_id, annotation_type, annotatio
         "Content-Type": "application/json",
     }
     
-    print(annotations)
     try:
         response = requests.post(url, headers=headers, params=params, json=annotations)
         response.raise_for_status()  # Raise an exception for HTTP errors
@@ -61,24 +74,38 @@ def execute(self, instance, **kwargs):
     import django
     django.setup()
     from impurity.models import Impurity
+    CVISIONOPS_API_URL = get_param("cvision_api_url")
+    CVISIONOPS_PROJECT_NAME = get_param("cvision_project_name")
     data:dict = {}
+
     try:
         logger.info(f"Executing alarm with ID: {instance}")
         wi = Impurity.objects.get(id=instance)
         image = wi.image
+
+        if image.is_processed:
+            wi.is_processed = True
+            wi.save(update_fields=["is_processed"])
+            return {
+                "action": "skipped",
+                'time':  datetime.now().strftime("%Y-%m-%d %H-%M-%S"),
+                'result': 'Image already processed',
+            }
+        
         media_file = image.image_file.path
         if not os.path.exists(media_file):
             raise ValueError(f"{media_file} does not exist")
         
-        url = "http://10.7.0.6:29085/api/v1/images"
+        url = f"{CVISIONOPS_API_URL}/api/v1/image"
         params = {
             "source_of_origin": wi.image.sensorbox.sensor_box_name,
             "image_id": wi.image.image_id,
+            "project_id": CVISIONOPS_PROJECT_NAME
         }
         
         with open(media_file, "rb") as file:
             files = {
-                "files": file
+                "file": file
             }
             response = requests.post(url, params=params, files=files)
 
@@ -88,13 +115,44 @@ def execute(self, instance, **kwargs):
             raise ValueError(f"Failed to upload file. Status code: {response.status_code}, Response: {response.text}")
 
 
-        post_annotations(
-            api_url="http://10.7.0.6:29085",
-            project_name = "amk_front_impurity",
-            image_id=wi.image.image_id,
-            annotation_type='bounding_boxes',
-            annotations=[[wi.class_id] + wi.object_coordinates],
-        )
+        if "image_id" in response.json():
+            image_id = response.json().get('image_id')
+        else: 
+            image_id = wi.image.image_id
+
+        with open(media_file, "rb") as file:
+            files = {
+                "image": file
+            }
+            infer_response = requests.post("http://localhost:23085/api/v1/infer/impurity", params={"conf": 0.25}, files=files)
+
+        if infer_response.status_code == 200:
+            print("File successfully uploaded:", infer_response.json())
+        else:
+            raise ValueError(f"Failed to upload file. Status code: {infer_response.status_code}, Response: {infer_response.text}")
+
+        infer_response = infer_response.json()
+        detections = infer_response.get("predictions", [])
+
+        print(CVISIONOPS_API_URL)
+        print(CVISIONOPS_PROJECT_NAME)
+
+        for i, detection in enumerate(detections):
+            print(f"Annotation: {[[int(detection['class_id'])] + detection['xyxyn']]}")
+            post_annotations(
+                api_url=f"{CVISIONOPS_API_URL}",
+                project_name = f"{CVISIONOPS_PROJECT_NAME}",
+                image_id=image_id,
+                annotation_type='bounding_boxes',
+                annotations=[[int(detection['class_id'])] + detection["xyxyn"] + [float(detection["confidence"])]],
+                # annotations=[[wi.class_id] + wi.object_coordinates],
+            )
+
+        image.is_processed = True
+        image.save(update_fields=["is_processed"])
+
+        wi.is_processed = True
+        wi.save(update_fields=["is_processed"])
 
         data.update(
             {

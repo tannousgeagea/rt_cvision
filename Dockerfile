@@ -2,7 +2,7 @@
 # generated from docker_images/create_ros_image.Dockerfile.em
 ARG CUDA_VERSION=12.5.1-cudnn-runtime-ubuntu22.04
 
-FROM nvidia/cuda:${CUDA_VERSION}
+FROM nvidia/cuda:12.5.1-cudnn-runtime-ubuntu22.04
 
 LABEL maintainer="tannous.geagea@wasteant.com"
 LABEL com.wasteant.version="1.1b1"

@@ -9,17 +9,10 @@ import time
 import logging
 from concurrent import futures
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-from common_utils.services.redis_manager import RedisManager
+from common_utils.services.redis import redis_manager
 from visualizes.interface.grpc import visualizes_service_pb2
 from visualizes.interface.grpc import visualizes_service_pb2_grpc
 from visualizes.main import Processor
-
-redis_manager = RedisManager(
-    host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
-    password=os.environ['REDIS_PASSWORD'],
-)
 
 processor = Processor()
 class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
@@ -29,6 +22,9 @@ class ServiceImpl(visualizes_service_pb2_grpc.ComputingUnitServicer):
         
         assert 'img_key' in data.keys(), f'key: img_key not found in data'
         img_key = data.get('img_key', 'None')
+        if not redis_manager:
+            raise ValueError(f"⚠️ Redis is not available.")
+        
         status, retrieved_image = redis_manager.retrieve_image(key=img_key)
         
         assert status, f'Failed to retrieve image from Redis'

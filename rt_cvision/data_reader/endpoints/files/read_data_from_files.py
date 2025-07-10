@@ -5,18 +5,11 @@ import logging
 from datetime import time as ti
 from datetime import datetime, timezone
 from data_reader.utils.file_utils import examine_src
-from common_utils.services.redis_manager import RedisManager
+from common_utils.services.redis import redis_manager
 
 VALID_FORMAT = ['jpeg', 'png', 'jpg', 'webp']
 DEFAULT_ACQUISITION_RATE = 1 #fps
 DATETIME_FORMAT = "%Y-%m-%d %H-%M-%S"
-
-redis_manager = RedisManager(
-    host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
-    password=os.environ['REDIS_PASSWORD'],
-)
 
 def read_data(params, callback=None):
     payload = {}
@@ -34,7 +27,15 @@ def read_data(params, callback=None):
         while True:
             images = examine_src(params["src"], VALID_FORMAT)
             for image in images:
-                ACQUISITION_RATE = redis_manager.redis_client.get("ACQUISITION_RATE") or DEFAULT_ACQUISITION_RATE
+                if redis_manager:
+                    raw = redis_manager.redis_client.get("ACQUISITION_RATE")
+                else:
+                    raw = DEFAULT_ACQUISITION_RATE
+                try:
+                    ACQUISITION_RATE = float(raw) if raw else DEFAULT_ACQUISITION_RATE
+                except (ValueError, TypeError):
+                    ACQUISITION_RATE = DEFAULT_ACQUISITION_RATE
+                    
                 logging.info(f'Publishing at {ACQUISITION_RATE} fps')
                 logging.info(f'{len(images)} Found : {len(processed)} Processed !')
                 if image in processed:
