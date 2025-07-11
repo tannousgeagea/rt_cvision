@@ -1,5 +1,3 @@
-import django
-django.setup()
 
 import requests
 import logging
@@ -8,10 +6,6 @@ import time
 
 logger = logging.getLogger(__name__)
 
-from tenants.models import (
-    PlantEntity,
-    SensorBox,
-)
 
 class ServiceConfig:
     """Represents a single service configuration allowing dot-notation access."""
@@ -49,12 +43,6 @@ class ConfigManager:
 
     def __repr__(self):
         return f"<ConfigManager Services={list(self.__dict__.keys())}>"
-
-entity = PlantEntity.objects.all()
-sensorbox = None
-if entity:
-    entity = entity.first()
-    sensorbox = SensorBox.objects.get(plant_entity=entity)
 
 class ServiceConfigClient:
     def __init__(self, api_url: str, service_id: str, timeout: int = 5, cache_ttl: int = 60):

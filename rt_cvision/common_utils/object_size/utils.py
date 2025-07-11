@@ -80,7 +80,7 @@ def extract_size_threshold(object_length_threshold: List[Dict]) -> Tuple[List[st
         try:
             min_val = threshold["min"]
             max_val = threshold.get("max", None)
-            label = f"{min_val} - {max_val}" if max_val is not None else f"> {min_val}"
+            label = f"{int(min_val * 100)} - {int(max_val * 100)} cm" if max_val is not None else f"> {int(min_val * 100)} cm"
             labels.append(label)
             thresholds.append(min_val)
             colors.append(Color.from_hex(threshold["color"]).as_bgr())

@@ -1,16 +1,20 @@
 import os
-import redis
 import json
 import logging
+from configure.client import ServiceConfigClient
+from common_utils.services.redis import redis_manager
 
 logging.basicConfig(level=logging.INFO)
 
-r = redis.Redis(
-    host=os.environ['REDIS_HOST'],
-    port=os.environ['REDIS_PORT'],
-    db=os.environ['REDIS_DB'],
-    password=os.environ['REDIS_PASSWORD'],
+if not redis_manager:
+    raise ValueError(f"⚠️ Redis is not available.")
+
+r = redis_manager.redis_client 
+config_client = ServiceConfigClient(
+    api_url="http://localhost:23085",
+    service_id="impurity"
 )
+
 def start_listener():
     logging.info("Redis List listener started.")
     while True:
