@@ -1,6 +1,6 @@
 
 class ConfigRouter:
-    config_apps = {'configure', 'tenants'}
+    config_apps = {'configure'}
 
     def db_for_read(self, model, **hints):
         if model._meta.app_label in self.config_apps:
