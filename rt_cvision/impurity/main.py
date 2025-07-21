@@ -43,6 +43,7 @@ class Processor:
         self.config['show_class_label'] = True
         self.config['show_attributes'] = False
         self.config['show_context'] = True
+        self.config['line_width'] = 3
         self.box_annotator = BoxAnnotator(config=self.config)
         self.ipublisher = ImagePublisher(config=self.config, topic="/rgb/left/impurity/enriched")
         self.detection_models = DetectionModel(self.config)
@@ -65,8 +66,9 @@ class Processor:
                 confidence_threshold=self.config.get("confidence_threshold", 0.25), data=data
             )
             logging.info(f"[Impurity] Enriched Segments: {len(detections)}")
-            detections = self.detection_models.check_duplicate(detections)
+            # detections = self.detection_models.check_duplicate(detections)
             detections, pdetections = self.detection_models.classify(detections=detections)
+            pdetections = self.detection_models.check_duplicate(pdetections)
             severity = SEVERITY_LEVEL_MAP_BY_CLASS_vectorized(classes=detections.class_id, thresholds=[1, 2, 3])
             logging.info(f"[Impurity] Severity {severity}")
             logging.info(f"[Impurity] Classes: {detections.data['class_name']}")
