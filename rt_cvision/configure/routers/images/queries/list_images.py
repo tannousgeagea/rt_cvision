@@ -68,7 +68,9 @@ def list_images(
     tag: Optional[str] = Query(None, description="Filter by single tag name"),
     tags: Optional[List[str]] = Query(None, description="Filter by multiple tag names"),
     from_date: Optional[datetime] = Query(None, description="Filter from timestamp"),
-    to_date: Optional[datetime] = Query(None, description="Filter to timestamp")
+    to_date: Optional[datetime] = Query(None, description="Filter to timestamp"),
+    limit: int = Query(20, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
 ) -> List[ImageOut]:
     images = Image.objects.prefetch_related("impurities").order_by('-created_at')
 
@@ -82,7 +84,9 @@ def list_images(
         images = images.filter(impurities__tags__name=tag).distinct()
     if tags:
         images = images.filter(impurities__tags__name__in=tags).distinct()
-        
+    
+    total_count = images.count()
+    images = images[offset:offset + limit]
     return [
         ImageOut(
             image_id=img.image_id,
