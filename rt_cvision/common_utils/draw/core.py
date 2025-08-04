@@ -87,9 +87,9 @@ class BoxAnnotator:
                     color=self.generate_random_rgb_vectorized(n=1)[0]
                 )
 
-        if self.show_roi and 'roi' in data and data['roi']:
+        if self.show_roi and 'roi_pixels' in data and data['roi_pixels']:
             annotator.draw_enclosing_transparent_circle(
-                box=poly2xyxy(data['roi']), 
+                box=poly2xyxy(data['roi_pixels']), 
                 color=Color.GREEN.as_bgr(), 
                 alpha=0.2)
 
