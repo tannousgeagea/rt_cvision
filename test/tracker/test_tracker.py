@@ -6,7 +6,7 @@ sys.path.append(
     "/home/appuser/src/rt_cvision"
 )
 
-from common_utils.trackers import DeepSORTTracker, DeepSORTFeatureExtractor
+# from common_utils.trackers import DeepSORTTracker, DeepSORTFeatureExtractor
 
 import cv2
 import numpy as np
@@ -21,13 +21,13 @@ from typing import Callable, Generator, Optional, Tuple
 CONFIDENCE_THRESHOLD = 0.3
 NMS_THRESHOLD = 0.3
 
-SOURCE_VIDEO_PATH = "/media/tracker/bikes-1280x720-2.mp4"
-TARGET_VIDEO_PATH = "/media/tracker/bikes-1280x720-2-result.avi"
+SOURCE_VIDEO_PATH = "/media/images/gas_canister/gas_canister-fps3.mp4"
+TARGET_VIDEO_PATH = "/media/images/gas_canister/gas_canister-fps3-result.mp4"
 MAX_FRAMES = None
 show_progress = True
 progress_message = "Processing Video"
 
-model = YOLO("yolo11s.pt")
+model = YOLO("/media/GasCanisterDet_V1.pt")
 
 # feature_extractor = DeepSORTFeatureExtractor.from_timm(
 #     model_name="mobilenetv4_conv_small.e1200_r224_in1k")
@@ -224,7 +224,8 @@ def callback(frame, _):
         xyxy = detections.xyxy[detection_idx].astype(int)
         annotator.box_label(
             box=xyxy,
-            label=f"{detections.tracker_id[detection_idx]}" if detections.tracker_id is not None else ''
+            label=f"{detections.tracker_id[detection_idx]} - gas canister" if detections.tracker_id is not None else '',
+            color=(0, 0, 255)
         )
 
     return annotator.im.data
