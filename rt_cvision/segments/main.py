@@ -48,9 +48,9 @@ class Processor:
             message = {
                 "detections": detections.to_dict(),
                 "unique_detections": unique_detections.to_dict(),
-                "roi": roi,
                 "width": w0,
                 "height": h0,
+                "roi_pixels": roi,
                 "filtered_regions": filtered_regions,
                 "object-length-thresholds": self.config.get("object-length-thresholds"),
                 **data,

@@ -1,6 +1,7 @@
 import os
 import math
 import time
+import psutil
 import django
 django.setup()
 
@@ -16,6 +17,12 @@ from collections import defaultdict
 from fastapi.routing import APIRoute
 from datetime import datetime, timedelta
 from fastapi.responses import JSONResponse
+from common_utils.health.runtime import get_supervisord_uptime, get_supervisord_last_deployed
+from common_utils.health.metrics import get_metrics
+from common_utils.health.health_score import calculate_health_score
+
+
+from tenants.models import Tenant
 
 from configure.models import (
     Service, 
@@ -139,6 +146,7 @@ def get_service_config(service_id):
         fields_qs = ServiceConfigFieldInstance.objects.filter(group=group, is_active=True).order_by("order")
         fields_data = []
         for field in fields_qs:
+            meta_info = field.definition.meta_info or {}
             fields_data.append({
                 "id": field.id,
                 "label": field.definition.label,
@@ -150,6 +158,7 @@ def get_service_config(service_id):
                 "order": field.order,
                 "options": field.definition.options,
                 "thresholds": field.value if field.definition.input_type.name == "threshold" else None,
+                **meta_info,
             })
         groups_data.append({
             "name": group.name,
@@ -174,6 +183,16 @@ router = APIRouter(
 def get_service(response: Response):
     results = {}
     try:
+
+        tenant = Tenant.objects.all().first()
+        if not tenant:
+            raise HTTPException(
+                status_code=404, detail=f"Service not yet configured"
+            )
+        
+        errors = get_metrics()["errors"]
+        requests = get_metrics()["requests"]
+        health_score = calculate_health_score(errors, requests, health_ok=True)
         grouped_data = defaultdict(list)
         items = server.supervisor.getAllProcessInfo()
         for item in items:
@@ -181,7 +200,21 @@ def get_service(response: Response):
             grouped_data[item['group']].append(item)
         
         results = {
-            "data": [
+            "id": f"rtcvision-{tenant.tenant_id}",
+            "name": f"RTCVision {tenant.tenant_name}",
+            "description": f"Real-Time Computer Vision @ {tenant.tenant_name} in {tenant.location}",
+            "status": "active",
+            "version": os.getenv("RTCVISION_VERSION", "1.0.0"),
+            "environment": os.getenv("ENVIRONMENT", "production"),
+            "uptime": get_supervisord_uptime(),
+            "lastDeployed": get_supervisord_last_deployed(),
+            "cpu": psutil.cpu_percent(interval=0.1),
+            "memory": psutil.virtual_memory().percent,
+            "healthScore": health_score,
+            "requests": requests,
+            "errors": errors,
+            "tenantId": tenant.tenant_id,
+            "microservices": [
                 {
                     "id": group, 
                     "name": group, 
@@ -191,8 +224,7 @@ def get_service(response: Response):
                     "uptime": get_uptime(config),
                     "cpu": "2.3%",
                     "memory": "256MB",
-                    # "items": config,
-                    "config": get_service_config(service_id=group)
+                    "configuration": get_service_config(service_id=group)
                 } for group, config in grouped_data.items()
             ]
         }

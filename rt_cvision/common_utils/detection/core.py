@@ -282,7 +282,7 @@ class Detections:
         """
         CLASS_NAME_DATA_FIELD = "class_name"
         class_id = ultralytics_results.boxes.cls.cpu().numpy().astype(int)
-        class_names = np.array([ultralytics_results.names[i] for i in class_id])
+        class_names = np.array([ultralytics_results.names[i] for i in class_id], dtype="U20")
         return cls(
             xyxy=ultralytics_results.boxes.xyxy.cpu().numpy(),
             xyxyn=ultralytics_results.boxes.xyxyn.cpu().numpy(),

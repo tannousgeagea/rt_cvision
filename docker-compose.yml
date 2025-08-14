@@ -2,7 +2,7 @@
 services:      
   redis:
     image: "redis:alpine"
-    container_name: rt-cvision-redis
+    container_name: rtcvision-redis
     restart: "always"
     volumes:
       - cache:/data
@@ -13,7 +13,7 @@ services:
 
   # zookeeper:
   #   image: confluentinc/cp-zookeeper:latest
-  #   container_name: rt-cvision-zookeeper
+  #   container_name: rtcvision-zookeeper
   #   restart: always
   #   environment:
   #     ZOOKEEPER_CLIENT_PORT: 2181
@@ -23,7 +23,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:latest
-    container_name: rt-cvision-kafka
+    container_name: rtcvision-kafka
     restart: always
     networks: 
       - internal
@@ -42,9 +42,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
 
-  rt-cvision:
+  rtcvision:
     image: tannousgeagea/rtcvision:${TAG}
-    container_name: rt-cvision-core
+    container_name: rtcvision-core
     stdin_open: true # docker run -i
     tty: true        # docker run -t
     env_file: .env
@@ -102,6 +102,19 @@ services:
       - /home/wasteantadmin/Workspace/Datasets:/rosbags
     command: ["ros2", "bag", "play", "/rosbags/rosbag2_2025_03_03-12_15_43_0.db3", '--loop']
 
+  postgres:
+    image: postgres:latest
+    container_name: rtcvision-postgres
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    networks:
+     - internal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
 volumes:
   cache:
     driver: local
@@ -109,6 +122,7 @@ volumes:
     driver: local
   data:
     driver: local
-
+  postgres_data:
+  
 networks:
   internal:

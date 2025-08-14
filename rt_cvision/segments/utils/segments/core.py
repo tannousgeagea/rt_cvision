@@ -62,9 +62,10 @@ class Segmentation:
                 self.active_filter_names.append(filter_model['name'])
                 self.filter_engine.add_model(
                     object_type=filter_model['name'],
-                    detection_model=filter_model["model_path"],
+                    detection_model=filter_model["weights"],
                     config=filter_model,
                     device=config.get("device") or device,
+                    confidence_threshold=filter_model['confidence_threshold'],
                 )
 
     def infer(self, image: np.ndarray, confidence_threshold:Optional[float] = 0.25):

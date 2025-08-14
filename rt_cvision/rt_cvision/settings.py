@@ -88,11 +88,28 @@ WSGI_APPLICATION = 'rt_cvision.wsgi.application'
 
 DATABASES = {
     'default': {
+        'ENGINE': os.environ.get('DATABASE_ENGINE', "django.db.backends.sqlite3"),
+        'NAME': os.environ.get('DATABASE_NAME') if not 'sqlite3' in os.environ.get('DATABASE_ENGINE', '') else BASE_DIR / 'db.sqlite3',
+        'USER': os.environ.get('DATABASE_USER'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWD'),
+        'HOST': os.environ.get('DATABASE_HOST'),
+        'PORT': os.environ.get('DATABASE_PORT')
+
+    },
+    'config': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'sqlite/db.sqlite3',
     }
 }
 
+DATABASE_ROUTERS = ["rt_cvision.router.ConfigRouter"]
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'sqlite/db.sqlite3',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
