@@ -119,6 +119,7 @@ class ServiceConfigClient:
         return config
 
 
+
 if __name__ == "__main__":
     config = ServiceConfigClient(
         api_url="http://localhost:23085",

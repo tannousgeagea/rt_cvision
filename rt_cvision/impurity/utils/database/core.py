@@ -9,6 +9,8 @@ import numpy as np
 import logging
 from PIL import Image as PILImage
 from typing import Optional, Dict
+from datetime import timedelta
+from typing import Union
 from metadata.models import Tag
 from datetime import datetime, timezone
 from data_reader.models import Image, ImageTag
@@ -61,7 +63,9 @@ class DatabaseManager:
         event_uid: Optional[str] = None, 
         filename: Optional[str] = None,
         validate_image: bool = True,
-        max_file_size: int = 50 * 1024 * 1024  # 50MB default limit
+        max_file_size: int = 50 * 1024 * 1024,  # 50MB default limit
+        expires_in: Union[int, timedelta, None] = timedelta(days=7),
+        auto_expire: bool = True
     ) -> Image | None:
         """
         Save a CV2 image to the database with improved error handling and validation.
@@ -95,6 +99,15 @@ class DatabaseManager:
         event_uid = event_uid or str(uuid.uuid4())
         current_time = django_timezone.now()
         
+        expires_at = None
+        if auto_expire:
+            if isinstance(expires_in, int):
+                expires_at = current_time + timedelta(seconds=expires_in)
+            elif isinstance(expires_in, timedelta):
+                expires_at = current_time + expires_in
+            elif expires_in is not None:
+                raise ValueError("expires_in must be int (seconds), timedelta, or None")
+
         if filename is None:
             timestamp_str = current_time.strftime(DATETIME_FORMAT_IN_FILENAME)
             filename = f"{self.prefix}{timestamp_str}_{event_uid}.jpg"
@@ -130,6 +143,7 @@ class DatabaseManager:
                     sensorbox_id=self.sensorbox.get('id'),
                     source=getattr(self, 'source', None),  # Add source if available
                     is_processed=False,  # Explicitly set processing status
+                    expires_at=expires_at,
                 )
                 
                 # Save file and create database record in one operation
@@ -182,7 +196,7 @@ class DatabaseManager:
             if not n_detections:
                 return
 
-            image = self.save_image(cv_image=cv_image)
+            image = self.save_image_v2(cv_image=cv_image)
             data = detections.data
             for detection_idx in range(n_detections):
                 wi = Impurity.objects.create(

@@ -5,21 +5,14 @@ import requests
 from celery import shared_task
 import logging
 from datetime import datetime
+from configure.client import ServiceConfigClient
 logger = logging.getLogger(__name__)
-from common_utils.sync.core import sync
 
-
-def get_param(param):    
-    service_params = requests.get(
-        f"http://localhost:23085/api/v1/params/impurity/{param}",
-    )
-
-    if service_params.status_code == 200:
-        service_params = service_params.json()
-    else:
-        raise ValueError(f"Failed to upload file. Status code: {service_params.status_code}, Response: {service_params.text}")
-
-    return service_params["value"]
+SERVICE_ID = "impurity"
+config_client = ServiceConfigClient(
+    api_url="http://localhost:23085",
+    service_id=SERVICE_ID
+)
 
 def post_annotations(api_url, project_name, image_id, annotation_type, annotations):
     """
@@ -74,8 +67,10 @@ def execute(self, instance, **kwargs):
     import django
     django.setup()
     from impurity.models import Impurity
-    CVISIONOPS_API_URL = get_param("cvision_api_url")
-    CVISIONOPS_PROJECT_NAME = get_param("cvision_project_name")
+
+    config = config_client.load()
+    CVISIONOPS_API_URL = config.get("cvision_api_url")
+    CVISIONOPS_PROJECT_NAME = config.get("cvision_project_name")
     data:dict = {}
 
     try:
