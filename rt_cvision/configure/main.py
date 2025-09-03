@@ -19,6 +19,7 @@ from configure.routers import data_acquisition
 from configure.routers import logs
 from configure.routers import images
 from configure.routers import health
+from configure.routers import deletion
 from common_utils.health.middleware import MetricsMiddleware
 
 def create_app() -> FastAPI:
@@ -61,6 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(data_acquisition.endpoint.router)
     app.include_router(images.endpoint.router)
     app.include_router(health.endpoint.router)
+    app.include_router(deletion.endpoint.router)
     
     return app
 

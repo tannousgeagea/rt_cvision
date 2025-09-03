@@ -17,9 +17,17 @@ from common_utils.detection.core import Detections
 from common_utils import DATETIME_FORMAT_IN_FILENAME
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
+from django.db import transaction
+from django.utils import timezone as django_timezone
 from django.contrib.auth import get_user_model
 User = get_user_model()
-    
+
+logger = logging.getLogger(__name__)
+
+class ImageSaveError(Exception):
+    """Custom exception for image save operations"""
+    pass
+
 def compress_image(cv_image, quality:int=65):
     pil_image = PILImage.fromarray(cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB))
     img_size = pil_image.size
@@ -46,6 +54,104 @@ class DatabaseManager:
             f"{self.entity.get('uid', 'gate')}_"
             f"{self.sensorbox.get('location', 'front')}_"
         )
+
+    def save_image_v2(
+        self, 
+        cv_image: np.ndarray, 
+        event_uid: Optional[str] = None, 
+        filename: Optional[str] = None,
+        validate_image: bool = True,
+        max_file_size: int = 50 * 1024 * 1024  # 50MB default limit
+    ) -> Image | None:
+        """
+        Save a CV2 image to the database with improved error handling and validation.
+        
+        Args:
+            cv_image: OpenCV image array (numpy.ndarray)
+            event_uid: Optional unique identifier for the event
+            filename: Optional custom filename
+            validate_image: Whether to validate the image before saving
+            max_file_size: Maximum allowed file size in bytes
+        
+        Returns:
+            Image object if successful, None if failed
+        
+        Raises:
+            ImageSaveError: If image saving fails due to validation or processing errors
+            ValueError: If input parameters are invalid
+        """
+        
+        # Input validation
+        if cv_image is None:
+            raise ValueError("cv_image cannot be None")
+        
+        if not isinstance(cv_image, np.ndarray):
+            raise ValueError("cv_image must be a numpy ndarray")
+        
+        if validate_image and len(cv_image.shape) not in [2, 3]:
+            raise ValueError("cv_image must be a 2D or 3D array (grayscale or color)")
+        
+        # Generate unique identifiers
+        event_uid = event_uid or str(uuid.uuid4())
+        current_time = django_timezone.now()
+        
+        if filename is None:
+            timestamp_str = current_time.strftime(DATETIME_FORMAT_IN_FILENAME)
+            filename = f"{self.prefix}{timestamp_str}_{event_uid}.jpg"
+        
+        # Validate filename uniqueness (optional - depends on requirements)
+        if Image.objects.filter(image_id=event_uid).exists():
+            logger.warning(f"Image with event_uid {event_uid} already exists")
+            # You can choose to: raise error, generate new UUID, or overwrite
+            event_uid = str(uuid.uuid4())
+        
+        try:
+            with transaction.atomic():
+                # Compress image and get metadata
+                file_content, img_dimensions = compress_image(cv_image=cv_image)
+                
+                if file_content is None:
+                    raise ImageSaveError("Image compression failed")
+                
+                # Validate file size
+                file_size = len(file_content)
+                if file_size > max_file_size:
+                    raise ImageSaveError(f"Compressed image size ({file_size} bytes) exceeds limit ({max_file_size} bytes)")
+                
+                # Create Image object with all metadata
+                image = Image(
+                    image_id=event_uid,
+                    image_name=filename,
+                    image_format='JPEG',
+                    image_size=file_size,  # Set the file size in bytes
+                    width=img_dimensions[0] if img_dimensions else None,
+                    height=img_dimensions[1] if img_dimensions else None,
+                    timestamp=current_time,
+                    sensorbox_id=self.sensorbox.get('id'),
+                    source=getattr(self, 'source', None),  # Add source if available
+                    is_processed=False,  # Explicitly set processing status
+                )
+                
+                # Save file and create database record in one operation
+                image.image_file.save(
+                    filename,
+                    ContentFile(file_content),
+                    save=True  # This will save the Image object automatically
+                )
+                
+                logger.info(f"Successfully saved image {event_uid} ({file_size} bytes)")
+                return image
+                
+        except Exception as err:
+            # Log the full error for debugging
+            logger.error(f"Failed to save image {event_uid}: {str(err)}", exc_info=True)
+            
+            # Re-raise with appropriate exception type
+            if isinstance(err, (ValueError, ImageSaveError)):
+                raise
+            else:
+                raise ImageSaveError(f"Database error while saving image: {str(err)}") from err 
+            
             
     def save_image(self, cv_image:np.ndarray, event_uid:Optional[str] = None, filename:Optional[str] = None) -> Image | None:
         try:
