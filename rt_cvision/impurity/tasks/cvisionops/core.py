@@ -54,7 +54,7 @@ def post_annotations(api_url, project_name, image_id, annotation_type, annotatio
     retry_backoff=True,
     retry_kwargs={"max_retries": 5},
     ignore_result=True,
-    name='impurity:execute'
+    name='cvisionops:execute'
 )
 def execute(self, instance, **kwargs):
     """
