@@ -161,7 +161,7 @@ class ImageProcessor:
 
         draw.text((pixel_coords[0], pixel_coords[1] - 25), "TARGET OBJECT", 
                  fill=color, font=font)
-        img_copy.save("test.png")
+
         return img_copy
     
     @staticmethod

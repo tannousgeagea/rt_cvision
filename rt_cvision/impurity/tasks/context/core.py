@@ -129,12 +129,17 @@ def execute(self, impurity_id: int):
 
         tag_groups = TagGroup.objects.all()
         for tag_group in tag_groups:
-            if tag_group.name in result.to_dict().keys():
-                value = result.to_dict()[tag_group.name]
-                tag, _ = Tag.objects.get_or_create(name=value)
+            result_json = result.to_dict()
+            if tag_group.name in result_json.keys():
+                value = result_json[tag_group.name]
+                confidence = result_json['confidence']
+                tag = Tag.objects.filter(name=value).first()
+                if not tag:
+                    tag, _ = Tag.objects.get_or_create(name=value, group=tag_group)
                 ImpurityTag.objects.get_or_create(
                     impurity=impurity,
                     tag=tag,
+                    confidence=float(confidence),
                     tagged_by=User.objects.filter(email=os.getenv('DJANGO_SUPERUSER_EMAIL')).first(),
                     source='model'
                 )
@@ -142,6 +147,7 @@ def execute(self, impurity_id: int):
                 ImageTag.objects.get_or_create(
                     image=impurity.image,
                     tag=tag,
+                    confidence=float(confidence),
                     tagged_by=User.objects.filter(email=os.getenv('DJANGO_SUPERUSER_EMAIL')).first(),
                     source='model',
                 )
