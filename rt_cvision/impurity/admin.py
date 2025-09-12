@@ -16,7 +16,7 @@ class ImpurityTagInline(TabularInline):
 class ImpurityAdmin(ModelAdmin):
     list_display = ('image', 'object_uid', 'confidence_score', 'class_id', 'timestamp', 'is_processed')
     list_filter = ('is_processed', 'class_id', 'tags')
-    search_fields = ("object_uid", 'image__image_id')
+    search_fields = ("object_uid", 'image__image_id', "image__image_name")
     inlines = [ImpurityTagInline]
     
 @admin.register(ImpurityTask)

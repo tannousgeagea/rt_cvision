@@ -2,6 +2,8 @@ import os
 import time
 import django
 django.setup()
+import logging
+from asgiref.sync import sync_to_async
 from fastapi import APIRouter
 from fastapi.routing import APIRoute
 from fastapi import FastAPI, HTTPException, Query
@@ -17,9 +19,12 @@ from fastapi.responses import JSONResponse
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q
+from django.core.files.storage import default_storage
 from django.core.exceptions import ObjectDoesNotExist
 from data_reader.models import Image
 from configure.routers.deletion.schemas import DeleteResponse, ImageDeleteRequest, validate_filters
+
+logger = logging.getLogger(__name__)
 
 class TimedRoute(APIRoute):
     def get_route_handler(self) -> Callable:
@@ -98,50 +103,98 @@ async def delete_images(delete_request: ImageDeleteRequest):
         if delete_request.delete_expired_only:
             current_time = timezone.now()
             filters &= Q(expires_at__isnull=False, expires_at__lte=current_time)
-        
-        with transaction.atomic():
-            # Get images to delete
-            images_to_delete = Image.objects.filter(filters)
-            
-            if not images_to_delete.exists():
-                return DeleteResponse(
-                    success=True,
-                    deleted_count=0,
-                    message="No images found matching the specified criteria",
-                    deleted_ids=[]
-                )
-            
-            # Check for related impurities if not force deleting
-            if not delete_request.force_delete:
-                images_with_impurities = []
-                for image in images_to_delete:
-                    if image.impurities.exists():
-                        images_with_impurities.append(image.image_id)
+
+        # Wrap the database operations in sync_to_async
+        @sync_to_async
+        def perform_delete_operation():
+            with transaction.atomic():
+                # Get images to delete
+                images_to_delete = Image.objects.filter(filters)
                 
-                if images_with_impurities:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "error": "Cannot delete images with related impurities",
-                            "images_with_impurities": images_with_impurities,
-                            "suggestion": "Use force_delete=true to delete anyway, or delete impurities first"
-                        }
-                    )
-            
-            # Store image IDs for response
-            deleted_image_ids = list(images_to_delete.values_list('image_id', flat=True))
-            
-            # Perform deletion
-            deleted_count, _ = images_to_delete.delete()
-            
-            logger.info(f"Deleted {deleted_count} images: {deleted_image_ids}")
-            
-            return DeleteResponse(
-                success=True,
-                deleted_count=deleted_count,
-                message=f"Successfully deleted {deleted_count} images",
-                deleted_ids=deleted_image_ids
-            )
+                if not images_to_delete.exists():
+                    return {
+                        "success": True,
+                        "deleted_count": 0,
+                        "message": "No images found matching the specified criteria",
+                        "deleted_ids": []
+                    }
+                
+                # Check for related impurities if not force deleting
+                if not delete_request.force_delete:
+                    images_with_impurities = []
+                    for image in images_to_delete:
+                        if image.impurities.exists():
+                            images_with_impurities.append(image.image_id)
+                    
+                    if images_with_impurities:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail={
+                                "error": "Cannot delete images with related impurities",
+                                "images_with_impurities": images_with_impurities,
+                                "suggestion": "Use force_delete=true to delete anyway, or delete impurities first"
+                            }
+                        )
+                    
+                
+                # Force delete: first delete all related impurities
+                impurities_to_delete = Impurity.objects.filter(image__in=images_to_delete)
+                impurities_count = impurities_to_delete.count()
+                if impurities_count > 0:
+                    impurities_to_delete.delete()
+                    logger.info(f"Force delete: Deleted {impurities_count} related impurities before deleting images")
+                
+                
+                # Store image IDs for response
+                deleted_image_ids = list(images_to_delete.values_list('image_id', flat=True)) 
+                image_files = []
+                
+                # Collect image files before deletion
+                for image in images_to_delete:
+                    if image.image_file and image.image_file.name:
+                        image_files.append(image.image_file.name)
+                
+
+                # Perform deletion
+                deleted_count, _ = images_to_delete.delete()
+
+                # Delete physical files using Django storage
+                files_deleted = 0
+                files_not_found = 0
+                for file_name in image_files:
+                    try:
+                        if default_storage.exists(file_name):
+                            default_storage.delete(file_name)
+                            files_deleted += 1
+                            logger.debug(f"Deleted file: {file_name}")
+                        else:
+                            files_not_found += 1
+                            logger.warning(f"File not found in storage: {file_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete file {file_name} from storage: {str(e)}")
+                        # Don't raise exception for file deletion failures
+                        # The database records are already deleted
+
+                logger.info(f"Deleted {deleted_count} images: {deleted_image_ids}")
+                logger.info(f"Deleted {files_deleted} image files, {files_not_found} files not found")
+
+                response_message = f"Successfully deleted {deleted_count} images and {files_deleted} files"
+                if delete_request.force_delete and impurities_count > 0:
+                    response_message += f" and {impurities_count} related impurities"
+                if files_not_found > 0:
+                    response_message += f" ({files_not_found} files were already missing)"
+                    
+                return {
+                    "success": True,
+                    "deleted_count": deleted_count,
+                    "message": response_message,
+                    "deleted_ids": deleted_image_ids
+                }
+        
+        # Execute the database operations asynchronously
+        result = await perform_delete_operation()
+        
+        return DeleteResponse(**result)
     
     except HTTPException:
         raise

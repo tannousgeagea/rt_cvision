@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 OLLAMA_API_URL = os.getenv('OLLAMA_API_URL', 'http://server2.learning.test.want:11434')
 OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY')  # Optional
-VISION_MODEL = os.getenv('VISION_MODEL', 'gemma3:4b-it-qat')
+VISION_MODEL = os.getenv('VISION_MODEL', 'llama3.2-vision:latest')
 
 # ===================
 # DATA CLASSES
@@ -77,6 +77,7 @@ class WasteAnalysisResult:
     size: str
     location: str
     confidence: float
+    reasoning: str
     
     @classmethod
     def from_api_response(cls, response_data: Dict[str, Any]) -> 'WasteAnalysisResult':
@@ -89,7 +90,8 @@ class WasteAnalysisResult:
             visibility=obj_data.get('visibility', 'unknown'),
             size=obj_data.get('size', 'unknown'),
             location=obj_data.get('location', 'unknown'),
-            confidence=float(obj_data.get('confidence', 0.0))
+            confidence=float(obj_data.get('confidence', 0.0)),
+            reasoning=obj_data.get('reasoning', "unknown"),
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -101,7 +103,8 @@ class WasteAnalysisResult:
             'visibility': self.visibility,
             'size': self.size,
             'location': self.location,
-            'confidence': self.confidence
+            'confidence': self.confidence,
+            'reasoning': self.reasoning
         }
 
 # ===================
@@ -162,7 +165,39 @@ class ImageProcessor:
         draw.text((pixel_coords[0], pixel_coords[1] - 25), "TARGET OBJECT", 
                  fill=color, font=font)
 
+
+        img_copy.save("test.png")
         return img_copy
+    
+    def extract_bbox_region(self, image: Image.Image, bbox: BoundingBox, color: str = 'red',
+                           padding: float = 0.1) -> Tuple[Image.Image, dict]:
+        """
+        Extract and analyze only the bounding box region
+        More accurate but loses context
+        """
+        width, height = image.size
+        pixel_coords = bbox.to_pixel_coordinates(width, height)
+        
+        # Convert to pixel coordinates with optional padding
+        x_min = max(0, int((pixel_coords[0] - padding * width)))
+        y_min = max(0, int((pixel_coords[1] - padding * height)))
+        x_max = min(width, int((pixel_coords[2] + padding * width)))
+        y_max = min(height, int((pixel_coords[3] + padding * height)))
+        
+        # Crop the region
+        cropped = image.crop((x_min, y_min, x_max, y_max))
+        
+        # Return cropped image and metadata
+        crop_info = {
+            "original_size": (width, height),
+            "crop_coords": (x_min, y_min, x_max, y_max),
+            "crop_size": cropped.size,
+            "padding_used": padding
+        }
+        
+
+        cropped.save("test.png")
+        return cropped, crop_info
     
     @staticmethod
     def image_to_base64(image: Image.Image, format: str = 'JPEG') -> str:
@@ -193,7 +228,8 @@ class OllamaAPIClient:
         self,
         image_base64: str,
         coordinates: List[float],
-        model: str = VISION_MODEL
+        model: str = VISION_MODEL,
+        mode: str = "visual_bbox"
     ) -> Dict[str, Any]:
         """
         Analyze waste object using vision-language model
@@ -206,7 +242,7 @@ class OllamaAPIClient:
         Returns:
             API response with analysis results
         """
-        prompt = self._create_analysis_prompt(coordinates)
+        prompt = self._create_analysis_prompt(mode, coordinates)
         
         payload = {
             'model': model,
@@ -214,6 +250,7 @@ class OllamaAPIClient:
             'images': [image_base64],
             'format': 'json',  # Request JSON response
             'stream': False,
+            'keep_alive': 0,
             'options': {
                 'temperature': 0.1,  # Lower temperature for more consistent results
                 'top_p': 0.9
@@ -234,50 +271,71 @@ class OllamaAPIClient:
             logger.error(f"Ollama API request failed: {e}")
             raise
     
-    def _create_analysis_prompt(self, coordinates: List[float]) -> str:
+    def _create_analysis_prompt(self, mode:str="visual_bbox", coordinates: List[float]=None) -> str:
         """Create the analysis prompt with bounding box coordinates"""
-        return f"""You are a vision-language AI trained to analyze waste material in industrial settings.  
-            You are analyzing waste in a bunker. The RED BOUNDING BOX shows the exact object to analyze.  
-            Focus ONLY on the object inside the red box. Ignore everything outside.  
-            Original coordinates: {coordinates} (x_min, y_min, x_max, y_max)
+        return self._build_prompt(mode=mode, coords=coordinates)
 
-            This region likely contains a relevant waste object. Your task is to analyze only this object and return
-            detailed semantic and visual properties for it.  
+    def _build_prompt(self, mode:str = "visual_bbox", coords=None) -> str:
+        BASE_PROMPT = """
+            You are a vision-language AI trained to analyze waste material in industrial settings.  
+
+            Your task is to analyze a target waste object and return detailed semantic and visual properties for it.  
+            Focus ONLY on the target object. Ignore everything else.  
+
+            If the object is ambiguous or partially visible, output instance_type="other" and confidence<=0.5.  
+
+            Return STRICT JSON only. If any field is uncertain, lower confidence.  
+
+            Allowed instance_type values:  
+            ['mattress', 'sofa', 'chair', 'table', 'cabinet', 'rug', 'duvet', 'bed sheet', 'pillow', 'fabric', 'cardboard', 
+            'paper', 'plastic bag', 'plastic bottle',  'glass bottle', 'metal can', 'wooden pallet', 'gas canister', 
+            'fire extinguisher', 'battery', 'electronics', 'pipe', 'metal object', 'wood plank', 
+            'brick/concrete',  'rubber item', 'organic waste', 'other']
+            
             Describe the object with the following properties:
 
-            "instance_type": The most appropriate label from ['pipe', 'mattress', 'furniture', 'metal object', 'fabric', 'gas canister', 'bottle', 'rug', 'duvet', 'bed sheet', 'plastic bag', 'cardboard', 'other'].
-
-            "color": The dominant color or meaningful color pattern (e.g., 'blue and grey', 'rusted metal').
-
-            "material": The inferred material type (e.g., plastic, metal, foam, wood, fabric, rubber, composite).
-
-            "visibility": One of 'fully visible', 'partially occluded', or 'heavily occluded'.
-
-            "size": Relative to the image — 'small', 'medium', or 'large'.
-
-            "location": Spatial location in the image using terms like 'bottom right', 'center', etc.
-
-            "confidence": Your certainty (float between 0.0 and 1.0) that the interpretation is correct.
+            - "instance_type": The most appropriate label from the allowed list.  
+            - "color": The dominant color or meaningful color pattern (e.g., "blue and grey", "rusted metal").  
+            - "material": The inferred material type (e.g., plastic, metal, foam, wood, fabric, rubber, composite).  
+            - "visibility": One of 'fully visible', 'partially occluded', or 'heavily occluded'.  
+            - "size": Relative to the given input (either full image ROI or cropped image) — 'small', 'medium', or 'large'.  
+            - "location": Spatial location within the input (e.g., 'top right', 'center').  
+            - "confidence": Your certainty (float between 0.0 and 1.0) that the interpretation is correct.  
+            - "reasoning": A short explanation of why you assigned this instance_type, material, color, etc.  
 
             Output format:
 
-            {{  
-                "object": {{  
-                    "instance_type": "<instance_type>",  
-                    "color": "<dominant_color>",  
-                    "material": "<inferred_material>",  
-                    "visibility": "<visibility_level>",  
-                    "size": "<object_size>",  
-                    "location": "<spatial_position>",  
-                    "confidence": <confidence_score>  
-                }}  
-            }}
-
-            Focus only on the content inside the bounding box. If you are unsure, use "instance_type": "other" and reduce confidence accordingly.  
-
-            Only analyze the specified region. Do not describe other parts of the image.
+            {
+            "object": {
+                "instance_type": "<instance_type>",
+                "color": "<dominant_color>",
+                "material": "<inferred_material>",
+                "visibility": "<visibility_level>",
+                "size": "<object_size>",
+                "location": "<spatial_position>",
+                "confidence": <confidence_score>,
+                "reasoning": "<short explanation>"
+            }
+            }
 
         """
+
+
+        BBOX_MODE = """You are analyzing waste in a bunker.
+        The RED BOUNDING BOX shows the exact object to analyze.
+        Original coordinates: {coordinates} (x_min, y_min, x_max, y_max).
+        Focus ONLY on the object inside the red box. Ignore everything outside the box.
+        """
+
+        CROP_MODE = """You are given a single cropped image that contains ONLY the target object.
+        Do not use any scene context.
+        """
+        if mode == "visual_bbox":
+            return BBOX_MODE.format(coordinates=coords) + "\n\n" + BASE_PROMPT
+        elif mode == "cropped":
+            return CROP_MODE + "\n\n" + BASE_PROMPT
+        else:
+            raise ValueError("mode must be 'visual_bbox' or 'cropped'")
 
     def check_health(self) -> bool:
         """Check if Ollama API service is available"""
@@ -286,7 +344,6 @@ class OllamaAPIClient:
             return response.status_code == 200
         except:
             return False
-
 
 def process_impurity(impurity_id: int):
     """
@@ -314,9 +371,9 @@ def process_impurity(impurity_id: int):
             return
         
         # Skip if already processed
-        if impurity.is_processed:
-            logger.info(f"Impurity {impurity_id} already processed")
-            return
+        # if impurity.is_processed:
+        #     logger.info(f"Impurity {impurity_id} already processed")
+        #     return
         
         # Validate required data
         if not impurity.image or not impurity.object_coordinates:
@@ -339,15 +396,18 @@ def process_impurity(impurity_id: int):
         bbox = BoundingBox.from_coordinates(impurity.object_coordinates)
         
         # Draw bounding box on image
+        # image_with_bbox, _ = processor.extract_bbox_region(original_image, bbox)
         image_with_bbox = processor.draw_bounding_box(original_image, bbox)
         
+        # cropped, _ = processor.extract_bbox_region(image=original_image, bbox=bbox)
         # Convert to base64
         image_base64 = processor.image_to_base64(image_with_bbox)
         
         # Analyze with Ollama
         api_response = api_client.analyze_waste_object(
             image_base64=image_base64,
-            coordinates=impurity.object_coordinates
+            coordinates=impurity.object_coordinates,
+            mode="visual_bbox"
         )
         
         # Parse response
@@ -369,7 +429,8 @@ def process_impurity(impurity_id: int):
                 visibility='unknown',
                 size='unknown',
                 location='unknown',
-                confidence=0.0
+                confidence=0.0,
+                reasoning='unknown'
             )
         
         # Update impurity with results
@@ -411,8 +472,8 @@ def process_impurity(impurity_id: int):
                     source='model',
                 )
         
-        logger.info(f"Successfully processed impurity {impurity_id}")
-        logger.info(f"Analysis result: {result.instance_type} ({result.confidence:.2f} confidence)")
+        print(f"Successfully processed impurity {impurity_id}")
+        print(f"Analysis result: {result.instance_type} ({result.confidence:.2f} confidence)")
         
         
     except Exception as exc:
@@ -436,6 +497,39 @@ def process_impurity(impurity_id: int):
         #     except:
         #         pass
 
+def process_pending_impurities():
+    """Process all pending impurities in batch"""
+    from impurity.models import Impurity
+    
+    pending_impurities = Impurity.objects.filter(is_processed=False)
+    
+    logger.info(f"Found {pending_impurities.count()} pending impurities")
+    
+    for impurity in pending_impurities:
+        try:
+            process_impurity(impurity.pk)
+        except Exception as e:
+            logger.error(f"Failed to queue impurity {impurity.pk}: {e}")
+
+def re_process_impurities():
+    """Process all pending impurities in batch"""
+    import django
+    django.setup()
+    from impurity.models import Impurity
+    
+    processed_impurities = Impurity.objects.filter(is_processed=True)
+    
+    print(f"Found {processed_impurities.count()} processed impurities")
+    
+    for impurity in processed_impurities:
+        try:
+            process_impurity(impurity.pk)
+        except Exception as e:
+            logger.error(f"Failed to queue impurity {impurity.pk}: {e}")
+
+
+
 if __name__ == "__main__":
-    impurity_id = 3797
-    process_impurity(impurity_id)
+    # impurity_id = 4711
+    # process_impurity(impurity_id)
+    re_process_impurities()

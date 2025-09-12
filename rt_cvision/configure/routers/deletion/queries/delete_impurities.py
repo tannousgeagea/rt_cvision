@@ -2,6 +2,8 @@ import os
 import time
 import django
 django.setup()
+import logging
+from asgiref.sync import sync_to_async
 from fastapi import APIRouter
 from fastapi.routing import APIRoute
 from fastapi import FastAPI, HTTPException, Query
@@ -20,6 +22,8 @@ from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
 from data_reader.models import Image
 from configure.routers.deletion.schemas import DeleteResponse, ImpurityDeleteRequest, validate_filters
+
+logger = logging.getLogger(__name__)
 
 class TimedRoute(APIRoute):
     def get_route_handler(self) -> Callable:
@@ -107,34 +111,42 @@ async def delete_impurities(delete_request: ImpurityDeleteRequest):
         # Processing status
         if delete_request.is_processed is not None:
             filters &= Q(is_processed=delete_request.is_processed)
+
+        # Wrap the database operations in sync_to_async
+        @sync_to_async
+        def perform_delete_operation():
+            with transaction.atomic():
+                # Get impurities to delete
+                impurities_to_delete = Impurity.objects.filter(filters)
+                
+                if not impurities_to_delete.exists():
+                    return {
+                        "success": True,
+                        "deleted_count": 0,
+                        "message": "No impurities found matching the specified criteria",
+                        "deleted_ids": []
+                    }
+                
+                # Store impurity IDs for response
+                deleted_impurity_ids = list(impurities_to_delete.values_list('id', flat=True))
+                deleted_impurity_ids = [str(id) for id in deleted_impurity_ids]
+                
+                # Perform deletion
+                deleted_count, _ = impurities_to_delete.delete()
+                
+                logger.info(f"Deleted {deleted_count} impurities: {deleted_impurity_ids}")
+                
+                return {
+                    "success": True,
+                    "deleted_count": deleted_count,
+                    "message": f"Successfully deleted {deleted_count} impurities",
+                    "deleted_ids": deleted_impurity_ids
+                }
         
-        with transaction.atomic():
-            # Get impurities to delete
-            impurities_to_delete = Impurity.objects.filter(filters)
-            
-            if not impurities_to_delete.exists():
-                return DeleteResponse(
-                    success=True,
-                    deleted_count=0,
-                    message="No impurities found matching the specified criteria",
-                    deleted_ids=[]
-                )
-            
-            # Store impurity IDs for response
-            deleted_impurity_ids = list(impurities_to_delete.values_list('id', flat=True))
-            deleted_impurity_ids = [str(id) for id in deleted_impurity_ids]
-            
-            # Perform deletion
-            deleted_count, _ = impurities_to_delete.delete()
-            
-            logger.info(f"Deleted {deleted_count} impurities: {deleted_impurity_ids}")
-            
-            return DeleteResponse(
-                success=True,
-                deleted_count=deleted_count,
-                message=f"Successfully deleted {deleted_count} impurities",
-                deleted_ids=deleted_impurity_ids
-            )
+        # Execute the database operations asynchronously
+        result = await perform_delete_operation()
+        
+        return DeleteResponse(**result)
     
     except HTTPException:
         raise

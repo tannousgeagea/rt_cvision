@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_API_URL = os.getenv('OLLAMA_API_URL', 'http://server2.learning.test.want:11434')
 OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY')  # Optional
-VISION_MODEL = os.getenv('VISION_MODEL', 'gemma3:4b-it-qat')
-
+VISION_MODEL = os.getenv('VISION_MODEL', 'llama3.2-vision:latest')
+MODE = "cropped"
 
 
 @shared_task(
@@ -73,8 +73,13 @@ def execute(self, impurity_id: int):
         # Create bounding box
         bbox = BoundingBox.from_coordinates(impurity.object_coordinates)
         
+        if MODE == "visual_bbox":
         # Draw bounding box on image
-        image_with_bbox = processor.draw_bounding_box(original_image, bbox)
+            image_with_bbox = processor.draw_bounding_box(original_image, bbox)
+        elif MODE == "cropped":
+            image_with_bbox, _ = processor.extract_bbox_region(original_image, bbox)
+        else:
+            raise ValueError("mode must be 'visual_bbox' or 'cropped'")
         
         # Convert to base64
         image_base64 = processor.image_to_base64(image_with_bbox)
@@ -82,7 +87,8 @@ def execute(self, impurity_id: int):
         # Analyze with Ollama
         api_response = api_client.analyze_waste_object(
             image_base64=image_base64,
-            coordinates=impurity.object_coordinates
+            coordinates=impurity.object_coordinates,
+            mode=MODE
         )
         
         # Parse response
