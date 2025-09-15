@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 OLLAMA_API_URL = os.getenv('OLLAMA_API_URL', 'http://server2.learning.test.want:11434')
 OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY')  # Optional
 VISION_MODEL = os.getenv('VISION_MODEL', 'llama3.2-vision:latest')
-MODE = "cropped"
+MODE = "visual_bbox"
 
 
 @shared_task(
@@ -84,11 +84,18 @@ def execute(self, impurity_id: int):
         # Convert to base64
         image_base64 = processor.image_to_base64(image_with_bbox)
         
+        context = {
+            "Object Length": f"{impurity.object_length * 100} cm" if impurity.object_length else "unknown",
+            "Detection Confidence": impurity.confidence_score,
+            "Detection Time": impurity.timestamp,
+        }
+
         # Analyze with Ollama
         api_response = api_client.analyze_waste_object(
             image_base64=image_base64,
             coordinates=impurity.object_coordinates,
-            mode=MODE
+            mode=MODE,
+            context=context,
         )
         
         # Parse response
@@ -110,7 +117,10 @@ def execute(self, impurity_id: int):
                 visibility='unknown',
                 size='unknown',
                 location='unknown',
-                confidence=0.0
+                condition='unknown',
+                confidence=0.0,
+                reasoning='unknown',
+                context_used='unknown',
             )
         
         # Update impurity with results

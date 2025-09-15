@@ -35,6 +35,21 @@ OLLAMA_API_URL = os.getenv('OLLAMA_API_URL', 'http://server2.learning.test.want:
 OLLAMA_API_KEY = os.getenv('OLLAMA_API_KEY')  # Optional
 VISION_MODEL = os.getenv('VISION_MODEL', 'llama3.2-vision:latest')
 
+ALLOWED_INSTANCE_TYPES = [
+    'mattress', 'sofa', 'chair', 'table', 'cabinet', 'rug', 'duvet', 
+    'bed sheet', 'pillow', 'fabric', 'cardboard', 'paper', 'plastic bag',
+    'plastic bottle', 'glass bottle', 'metal can', 'wooden pallet', 
+    'gas canister', 'fire extinguisher', 'battery', 'electronics', 
+    'pipe', 'metal object', 'wood plank', 'brick/concrete', 'rubber item', 
+    'organic waste', 'tire', 'cable', 'container', 'packaging', 'textile', 
+    'other'
+]
+
+ALLOWED_CONDITIONS = [
+    'intact', 'damaged', 'torn', 'crushed', 'weathered', 'new', 'worn'
+]
+
+
 # ===================
 # DATA CLASSES
 # ===================
@@ -76,8 +91,10 @@ class WasteAnalysisResult:
     visibility: str
     size: str
     location: str
+    condition: str
     confidence: float
     reasoning: str
+    context_used: str
     
     @classmethod
     def from_api_response(cls, response_data: Dict[str, Any]) -> 'WasteAnalysisResult':
@@ -90,8 +107,10 @@ class WasteAnalysisResult:
             visibility=obj_data.get('visibility', 'unknown'),
             size=obj_data.get('size', 'unknown'),
             location=obj_data.get('location', 'unknown'),
+            condition=obj_data.get('condition', 'unknown'),
             confidence=float(obj_data.get('confidence', 0.0)),
             reasoning=obj_data.get('reasoning', "unknown"),
+            context_used=obj_data.get('context_used', 'unknown'),
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -103,8 +122,10 @@ class WasteAnalysisResult:
             'visibility': self.visibility,
             'size': self.size,
             'location': self.location,
+            'condition': self.condition,
             'confidence': self.confidence,
-            'reasoning': self.reasoning
+            'reasoning': self.reasoning,
+            'context_used': self.context_used,
         }
 
 # ===================
@@ -229,7 +250,8 @@ class OllamaAPIClient:
         image_base64: str,
         coordinates: List[float],
         model: str = VISION_MODEL,
-        mode: str = "visual_bbox"
+        mode: str = "visual_bbox",
+        context: dict = None,
     ) -> Dict[str, Any]:
         """
         Analyze waste object using vision-language model
@@ -242,8 +264,9 @@ class OllamaAPIClient:
         Returns:
             API response with analysis results
         """
-        prompt = self._create_analysis_prompt(mode, coordinates)
+        prompt = self._create_analysis_prompt(mode, coordinates, context=context)
         
+        print(prompt)
         payload = {
             'model': model,
             'prompt': prompt,
@@ -271,12 +294,39 @@ class OllamaAPIClient:
             logger.error(f"Ollama API request failed: {e}")
             raise
     
-    def _create_analysis_prompt(self, mode:str="visual_bbox", coordinates: List[float]=None) -> str:
+    def _create_analysis_prompt(self, mode:str="visual_bbox", coordinates: List[float]=None, context:dict=None) -> str:
         """Create the analysis prompt with bounding box coordinates"""
-        return self._build_prompt(mode=mode, coords=coordinates)
+        return self._build_prompt(mode=mode, coords=coordinates, context=context)
 
-    def _build_prompt(self, mode:str = "visual_bbox", coords=None) -> str:
-        BASE_PROMPT = """
+    def _format_context_block(self, context: dict) -> str:
+        """Format additional context into bullet points"""
+        
+        if context is None:
+            return ""
+        
+        items = []
+        for key, value in context.items():
+            items.append(f"- {key}: {value}")
+
+        # if context.get("object_length") is not None:
+        #     items.append(f"- Object length: {context['object_length']} cm")
+        # if context.get("detection_confidence") is not None:
+        #     items.append(f"- Detection confidence: {context['detection_confidence']:.2f}")
+        # if context.get("class_id") is not None:
+        #     class_name = context.get("detected_class", "unknown")
+        #     items.append(f"- Detected class: {class_name} (ID: {context['class_id']})")
+        # if context.get("timestamp"):
+        #     items.append(f"- Detection time: {context['timestamp']}")
+        # if context.get("object_uid"):
+        #     items.append(f"- Object UID: {context['object_uid']}")
+        # if context.get("additional_notes"):
+        #     items.append(f"- Notes: {context['additional_notes']}")
+        
+        return "Additional context:\n" + "\n".join(items) if items else ""
+
+    def _build_prompt(self, mode:str = "visual_bbox", coords=None, context:dict=None) -> str:
+        CONTEXT_BLOCK = self._format_context_block(context)
+        BASE_PROMPT = f"""
             You are a vision-language AI trained to analyze waste material in industrial settings.  
 
             Your task is to analyze a target waste object and return detailed semantic and visual properties for it.  
@@ -286,11 +336,13 @@ class OllamaAPIClient:
 
             Return STRICT JSON only. If any field is uncertain, lower confidence.  
 
-            Allowed instance_type values:  
-            ['mattress', 'sofa', 'chair', 'table', 'cabinet', 'rug', 'duvet', 'bed sheet', 'pillow', 'fabric', 'cardboard', 
-            'paper', 'plastic bag', 'plastic bottle',  'glass bottle', 'metal can', 'wooden pallet', 'gas canister', 
-            'fire extinguisher', 'battery', 'electronics', 'pipe', 'metal object', 'wood plank', 
-            'brick/concrete',  'rubber item', 'organic waste', 'other']
+            Allowed instance_type values:
+            {ALLOWED_INSTANCE_TYPES}
+
+            Allowed condition values:
+            {ALLOWED_CONDITIONS}
+            
+            {CONTEXT_BLOCK}
             
             Describe the object with the following properties:
 
@@ -300,23 +352,27 @@ class OllamaAPIClient:
             - "visibility": One of 'fully visible', 'partially occluded', or 'heavily occluded'.  
             - "size": Relative to the given input (either full image ROI or cropped image) — 'small', 'medium', or 'large'.  
             - "location": Spatial location within the input (e.g., 'top right', 'center').  
+            - "condition": The current state of the object.
             - "confidence": Your certainty (float between 0.0 and 1.0) that the interpretation is correct.  
             - "reasoning": A short explanation of why you assigned this instance_type, material, color, etc.  
+            - "context_used": What context fields (length, detection_confidence, etc.) were used. Explicitly include "object_length" when determining size.
 
             Output format:
 
-            {
-            "object": {
-                "instance_type": "<instance_type>",
-                "color": "<dominant_color>",
-                "material": "<inferred_material>",
-                "visibility": "<visibility_level>",
-                "size": "<object_size>",
-                "location": "<spatial_position>",
-                "confidence": <confidence_score>,
-                "reasoning": "<short explanation>"
-            }
-            }
+            {{
+                "object": {{
+                    "instance_type": "<instance_type>",
+                    "color": "<dominant_color>",
+                    "material": "<inferred_material>",
+                    "visibility": "<visibility_level>",
+                    "size": "<object_size>",
+                    "location": "<spatial_position>",
+                    "condition": "<condition>",
+                    "confidence": <confidence_score>,
+                    "reasoning": "<short explanation>"
+                    "context_used": "<fields that influenced the decision>"
+                }}
+            }}
 
         """
 
@@ -371,9 +427,9 @@ def process_impurity(impurity_id: int):
             return
         
         # Skip if already processed
-        # if impurity.is_processed:
-        #     logger.info(f"Impurity {impurity_id} already processed")
-        #     return
+        if impurity.is_processed:
+            logger.info(f"Impurity {impurity_id} already processed")
+            return
         
         # Validate required data
         if not impurity.image or not impurity.object_coordinates:
@@ -403,11 +459,20 @@ def process_impurity(impurity_id: int):
         # Convert to base64
         image_base64 = processor.image_to_base64(image_with_bbox)
         
+        context = {
+            "Object Length": f"{impurity.object_length * 100} cm" if impurity.object_length else "unknown",
+            "Detection Confidence": impurity.confidence_score,
+            "Detection Time": impurity.timestamp,
+            # "Detected Class": impurity.meta_info.get('class_name') if  impurity.meta_info is not None else 'unknown',
+            # "Attributes": impurity.meta_info.get('attributes') if  impurity.meta_info is not None else 'unknown',
+        }
+
         # Analyze with Ollama
         api_response = api_client.analyze_waste_object(
             image_base64=image_base64,
             coordinates=impurity.object_coordinates,
-            mode="visual_bbox"
+            mode="visual_bbox",
+            context=context,
         )
         
         # Parse response
@@ -429,8 +494,10 @@ def process_impurity(impurity_id: int):
                 visibility='unknown',
                 size='unknown',
                 location='unknown',
+                condition='unknown',
                 confidence=0.0,
-                reasoning='unknown'
+                reasoning='unknown',
+                context_used='unknown',
             )
         
         # Update impurity with results
@@ -458,6 +525,8 @@ def process_impurity(impurity_id: int):
             if tag_group.name in result.to_dict().keys():
                 value = result.to_dict()[tag_group.name]
                 tag, _ = Tag.objects.get_or_create(name=value)
+                if not tag:
+                    tag, _ = Tag.objects.get_or_create(name=value, group=tag_group)
                 ImpurityTag.objects.get_or_create(
                     impurity=impurity,
                     tag=tag,
@@ -499,6 +568,8 @@ def process_impurity(impurity_id: int):
 
 def process_pending_impurities():
     """Process all pending impurities in batch"""
+    import django
+    django.setup()
     from impurity.models import Impurity
     
     pending_impurities = Impurity.objects.filter(is_processed=False)
@@ -530,6 +601,6 @@ def re_process_impurities():
 
 
 if __name__ == "__main__":
-    # impurity_id = 4711
-    # process_impurity(impurity_id)
-    re_process_impurities()
+    impurity_id = 5094
+    process_impurity(impurity_id)
+    # process_pending_impurities()

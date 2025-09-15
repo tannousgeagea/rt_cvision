@@ -65,6 +65,7 @@ services:
       - ${INET_HTTP_SERVER_PORT}:${INET_HTTP_SERVER_PORT}
       - ${DJANGO_ADMIN_PORT}:${DJANGO_ADMIN_PORT}
       - ${CONFIGURE_API_PORT}:${CONFIGURE_API_PORT}
+      - ${FLOWER_PORT}:${FLOWER_PORT}
     restart: unless-stopped
     depends_on:
       - redis
