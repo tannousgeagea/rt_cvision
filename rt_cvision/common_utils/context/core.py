@@ -266,6 +266,7 @@ class OllamaAPIClient:
         """
         prompt = self._create_analysis_prompt(mode, coordinates, context=context)
         
+        print(prompt)
         payload = {
             'model': model,
             'prompt': prompt,
@@ -354,7 +355,7 @@ class OllamaAPIClient:
             - "condition": The current state of the object.
             - "confidence": Your certainty (float between 0.0 and 1.0) that the interpretation is correct.  
             - "reasoning": A short explanation of why you assigned this instance_type, material, color, etc.  
-            - "context_used": What context fields (length, detection_confidence, etc.) were used.
+            - "context_used": What context fields (length, detection_confidence, etc.) were used. Explicitly include "object_length" when determining size.
 
             Output format:
 
@@ -600,6 +601,6 @@ def re_process_impurities():
 
 
 if __name__ == "__main__":
-    impurity_id = 4804
-    # process_impurity(impurity_id)
-    process_pending_impurities()
+    impurity_id = 5039
+    process_impurity(impurity_id)
+    # process_pending_impurities()
